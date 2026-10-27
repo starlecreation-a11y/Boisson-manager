@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoissonsManager — Gestion de Dépôt</title>
+<!-- Les polices sont chargées de manière asynchrone à la fin du body pour éviter tout blocage -->
+<style>
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1c2538;--border:#1e2d4a;
+  --gold:#f5c518;--gold2:#e8a800;--accent:#3b82f6;--success:#10b981;
+  --danger:#ef4444;--warn:#f59e0b;--text:#f1f5f9;--muted:#64748b;
+  --font:'Syne', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;--mono:'DM Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --shadow:0 4px 20px rgba(0,0,0,.4);
+  --glow:0 0 30px rgba(245,197,24,.15);
+}
+
+/* Optimisation du rendu immédiat */
+html {
+  background: #0a0e1a; /* Couleur de fond immédiate avant chargement CSS */
+}
+body {
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-display: swap;
+}
+
+/* MODE CLAIR/SOMBRE */
+body.light-mode{
+  --bg:#f8f9fa;--surface:#ffffff;--surface2:#f0f1f3;--border:#e0e1e3;
+  --text:#1a1f2e;--muted:#6b7280;
+}
+
+body.light-mode .mkt-header,
+body.light-mode .app-header,
+body.light-mode .guide-header{
+  background:var(--surface);border-bottom-color:var(--border);
+}
+
+body.light-mode .mkt-hero{
+  background:linear-gradient(135deg,#f8f9fa 0%,#f0f1f3 50%,#f8f9fa 100%);
+}
+
+body.light-mode .feature-card,
+body.light-mode .plan-card,
+body.light-mode .stat-card,
+body.light-mode .prod-card,
+body.light-mode .tournee-card,
+body.light-mode .cmd-card,
+body.light-mode .guide-card,
+body.light-mode .table-wrap,
+body.light-mode .modal{
+  background:var(--surface);border-color:var(--border);
+}
+
+body.light-mode .search-box,
+body.light-mode .act-input,
+body.light-mode .ia-input{
+  background:var(--surface2);border-color:var(--border);color:var(--text);
+}
+
+body.light-mode .btn.secondary{
+  background:var(--surface2);border-color:var(--border);color:var(--text);
+}
+
+body.light-mode tbody tr:hover{
+  background:var(--surface2);
+}
+
+body.light-mode .nav-btn:hover{
+  background:var(--surface2);
+}
+
+/* SIDEBAR MENU */
+.sidebar{
+  position:fixed;left:-280px;top:0;width:280px;height:100vh;background:var(--surface);
+  border-right:1px solid var(--border);z-index:150;transition:left .3s ease;
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+
+.sidebar.open{
+  left:0;
+}
+
+.sidebar-header{
+  padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+
+.sidebar-header .logo{
+  font-size:18px;font-weight:900;display:flex;align-items:center;gap:8px;
+}
+
+.sidebar-header .logo span{
+  color:var(--gold);
+}
+
+.sidebar-close{
+  background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px;transition:all .2s;
+}
+
+.sidebar-close:hover{
+  color:var(--gold);
+}
+
+.sidebar-nav{
+  flex:1;padding:12px 0;overflow-y:auto;
+}
+
+.sidebar-nav button{
+  width:100%;text-align:left;background:none;border:none;color:var(--muted);
+  font-family:var(--font);font-size:14px;font-weight:600;padding:12px 16px;
+  cursor:pointer;transition:all .2s;border-left:3px solid transparent;
+}
+
+.sidebar-nav button:hover{
+  background:var(--surface2);color:var(--text);border-left-color:var(--gold);
+}
+
+.sidebar-nav button.active{
+  background:rgba(245,197,24,.1);color:var(--gold);border-left-color:var(--gold);
+}
+
+.sidebar-footer{
+  padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;
+}
+
+.theme-toggle{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;
+  font-size:16px;cursor:pointer;transition:all .2s;width:100%;text-align:center;
+}
+
+.theme-toggle:hover{
+  border-color:var(--gold);background:rgba(245,197,24,.1);
+}
+
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:140;
+}
+
+.sidebar-overlay.open{
+  display:block;
+}
+
+.menu-toggle{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;
+  font-size:18px;cursor:pointer;transition:all .2s;color:var(--text);
+}
+
+.menu-toggle:hover{
+  border-color:var(--gold);color:var(--gold);
+}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{
+    width:100%;
+    left:-100%;
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;}
+
+/* ══ ÉCRAN D'ACCUEIL MARKETING ══ */
+#screen-marketing{
+  min-height:100vh;display:flex;flex-direction:column;
+  background:linear-gradient(135deg,#0a0e1a 0%,#0f1f3d 50%,#0a0e1a 100%);
+  position:relative;overflow:hidden;
+}
+#screen-marketing::before{
+  content:'';position:absolute;top:-200px;left:-200px;
+  width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(245,197,24,.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+#screen-marketing::after{
+  content:'';position:absolute;bottom:-150px;right:-150px;
+  width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(59,130,246,.06) 0%,transparent 70%);
+  pointer-events:none;
+}
+.mkt-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 28px;border-bottom:1px solid rgba(245,197,24,.1);
+}
+.mkt-logo{font-size:22px;font-weight:900;letter-spacing:-.5px;}
+.mkt-logo span{color:var(--gold);}
+.mkt-logo small{font-size:11px;font-weight:600;color:var(--muted);display:block;margin-top:-2px;}
+.mkt-hero{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 20px;position:relative;z-index:1;
+}
+.mkt-badge{
+  display:inline-block;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);
+  color:var(--gold);font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;
+  letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;
+}
+.mkt-title{font-size:clamp(28px,6vw,54px);font-weight:900;line-height:1.1;margin-bottom:16px;}
+.mkt-title span{color:var(--gold);}
+.mkt-sub{font-size:clamp(13px,2.5vw,17px);color:var(--muted);max-width:520px;line-height:1.6;margin-bottom:32px;}
+
+/* Bouteilles déco */
+.bottles-row{display:flex;gap:16px;justify-content:center;margin:28px 0;flex-wrap:wrap;}
+.bottle{
+  width:56px;height:120px;border-radius:8px 8px 4px 4px;position:relative;
+  display:flex;align-items:flex-end;justify-content:center;overflow:hidden;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+.bottle::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:16px;height:18px;background:inherit;border-radius:4px 4px 0 0;filter:brightness(1.2);}
+.bottle-1{background:linear-gradient(180deg,#c4860a,#7a5000);}
+.bottle-2{background:linear-gradient(180deg,#2d7a2d,#1a4a1a);}
+.bottle-3{background:linear-gradient(180deg,#8a0000,#4a0000);}
+.bottle-4{background:linear-gradient(180deg,#1a3a6a,#0a1f3a);}
+.bottle-5{background:linear-gradient(180deg,#c4860a,#7a5000);}
+.bottle-label{font-size:8px;font-weight:700;color:rgba(255,255,255,.7);padding:4px;text-align:center;line-height:1.2;margin-bottom:8px;}
+
+/* Features */
+.mkt-features{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;max-width:800px;margin:0 auto 32px;width:100%;}
+.feature-card{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:18px;text-align:left;
+  transition:border-color .2s,transform .2s;
+}
+.feature-card:hover{border-color:rgba(245,197,24,.3);transform:translateY(-2px);}
+.feature-icon{font-size:24px;margin-bottom:8px;}
+.feature-title{font-size:13px;font-weight:800;margin-bottom:4px;}
+.feature-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+.mkt-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;}
+.btn-gold{
+  background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;
+  border:none;border-radius:12px;padding:14px 28px;font-family:var(--font);
+  font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;
+  box-shadow:0 4px 20px rgba(245,197,24,.3);
+}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(245,197,24,.4);}
+.btn-outline{
+  background:transparent;color:var(--text);border:1.5px solid rgba(255,255,255,.2);
+  border-radius:12px;padding:14px 28px;font-family:var(--font);
+  font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;
+}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold);}
+
+.mkt-plans{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px;max-width:700px;margin:0 auto 32px;width:100%;
+}
+.plan-card{
+  background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:20px;text-align:center;transition:all .2s;
+}
+.plan-card.featured{border-color:var(--gold);background:rgba(245,197,24,.06);box-shadow:var(--glow);}
+.plan-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:8px;}
+.plan-name{font-size:16px;font-weight:800;margin-bottom:4px;}
+.plan-price{font-size:26px;font-weight:900;color:var(--gold);margin:8px 0;}
+.plan-price span{font-size:12px;font-weight:600;color:var(--muted);}
+.plan-features{font-size:11px;color:var(--muted);line-height:2;text-align:left;margin:10px 0;}
+.plan-btn{width:100%;margin-top:10px;}
+
+/* ══ ÉCRAN GUIDE ══ */
+#screen-guide{display:none;min-height:100vh;background:var(--bg);}
+.guide-header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:14px 20px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;
+}
+.guide-content{padding:20px;max-width:700px;margin:0 auto;}
+.guide-section{margin-bottom:28px;}
+.guide-section h2{font-size:17px;font-weight:800;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.guide-section p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:8px;}
+.guide-step{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;
+}
+.guide-step-num{
+  width:28px;height:28px;border-radius:50%;background:var(--gold);color:#000;
+  font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.guide-step-text{font-size:12px;color:var(--muted);line-height:1.6;}
+.guide-step-text b{color:var(--text);}
+
+/* ══ ÉCRAN ACTIVATION ══ */
+#screen-activation{display:none;min-height:100vh;background:var(--bg);display:none;align-items:center;justify-content:center;}
+.activation-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  padding:32px;max-width:400px;width:90%;text-align:center;
+  box-shadow:var(--shadow);
+}
+.act-icon{font-size:48px;margin-bottom:16px;}
+.act-title{font-size:20px;font-weight:800;margin-bottom:8px;}
+.act-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.act-input{
+  width:100%;background:var(--surface2);border:2px solid var(--border);border-radius:12px;
+  padding:13px;color:var(--text);font-family:var(--mono);font-size:16px;
+  text-align:center;letter-spacing:4px;outline:none;transition:border-color .2s;
+  margin-bottom:12px;
+}
+.act-input:focus{border-color:var(--gold);}
+.act-error{color:var(--danger);font-size:12px;margin-bottom:12px;display:none;}
+.act-info{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;}
+
+/* ══ APP PRINCIPALE ══ */
+#screen-app{display:none;min-height:100vh;}
+
+/* Header app */
+.app-header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 14px;display:flex;align-items:center;height:52px;gap:10px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.3);
+}
+.app-logo{font-size:16px;font-weight:900;white-space:nowrap;}
+.app-logo span{color:var(--gold);}
+.nav-wrap{flex:1;overflow-x:auto;scrollbar-width:none;}
+.nav-wrap::-webkit-scrollbar{display:none;}
+.nav{display:flex;gap:2px;padding:4px 0;}
+.nav-btn{
+  background:none;border:none;color:var(--muted);font-family:var(--font);
+  font-size:11px;font-weight:700;padding:6px 10px;border-radius:20px;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.nav-btn:hover{background:var(--surface2);color:var(--text);}
+.nav-btn.active{background:var(--gold);color:#000;}
+.hdr-right{display:flex;gap:6px;flex-shrink:0;}
+.ipill{
+  background:var(--surface2);border:1px solid var(--border);border-radius:20px;
+  padding:5px 9px;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s;
+  font-family:var(--font);font-weight:600;
+}
+.ipill:hover{border-color:var(--gold);color:var(--gold);}
+
+/* Licence badge */
+.lic-badge{
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;
+  white-space:nowrap;
+}
+.lic-badge.trial{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.3);}
+.lic-badge.monthly{background:rgba(59,130,246,.15);color:var(--accent);border:1px solid rgba(59,130,246,.3);}
+.lic-badge.lifetime{background:rgba(245,197,24,.15);color:var(--gold);border:1px solid rgba(245,197,24,.3);}
+
+/* Main */
+main{padding:14px;max-width:1100px;margin:0 auto;touch-action:pan-y;}
+.section{display:none;}.section.active{display:block;}
+.page-title{font-size:17px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.page-title .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex-shrink:0;}
+
+/* Stats */
+.stats-bar{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+@media(min-width:580px){.stats-bar{grid-template-columns:repeat(4,1fr);}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);}
+.stat-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+.stat-value{font-size:21px;font-weight:800;font-family:var(--mono);}
+.c-gold{color:var(--gold);}.c-blue{color:var(--accent);}.c-green{color:var(--success);}.c-red{color:var(--danger);}.c-warn{color:var(--warn);}
+
+/* Toolbar */
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.search-box{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:11px;
+  padding:8px 13px;color:var(--text);font-family:var(--font);font-size:13px;
+  outline:none;flex:1;min-width:130px;transition:border-color .2s;
+}
+.search-box:focus{border-color:var(--gold);}
+
+/* Buttons */
+.btn{
+  background:var(--gold);color:#000;border:none;border-radius:10px;padding:8px 14px;
+  font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;
+  transition:opacity .15s,transform .1s;white-space:nowrap;
+}
+.btn:hover{opacity:.88;}.btn:active{transform:scale(.97);}
+.btn.secondary{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
+.btn.success{background:var(--success);color:#fff;}
+.btn.danger{background:var(--danger);color:#fff;}
+.btn.blue{background:var(--accent);color:#fff;}
+.btn.sm{padding:6px 11px;font-size:11px;}
+
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;overflow-x:auto;box-shadow:var(--shadow);}
+table{width:100%;border-collapse:collapse;min-width:380px;}
+thead tr{background:var(--surface2);}
+th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap;}
+td{padding:9px 12px;font-size:12px;border-top:1px solid var(--border);font-family:var(--mono);}
+tbody tr:hover{background:var(--surface2);}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--font);}
+.badge.ok{background:rgba(16,185,129,.12);color:var(--success);}
+.badge.warn{background:rgba(245,158,11,.12);color:var(--warn);}
+.badge.danger{background:rgba(239,68,68,.12);color:var(--danger);}
+.badge.gold{background:rgba(245,197,24,.12);color:var(--gold);}
+.badge.blue{background:rgba(59,130,246,.12);color:var(--accent);}
+
+/* Action btns */
+.action-btns{display:flex;gap:4px;}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:12px;transition:all .15s;color:var(--muted);}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold);}
+.icon-btn.del:hover{border-color:var(--danger);color:var(--danger);}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:14px;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;width:480px;max-width:100%;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.modal.sm{width:370px;}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:16px;color:var(--text);}
+.form-row{margin-bottom:11px;}
+.form-row label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.7px;}
+.form-row input,.form-row select,.form-row textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;}
+.form-row input:focus,.form-row select:focus{border-color:var(--gold);}
+.form-row select option{background:var(--surface);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap;}
+.modal-sep{border:none;border-top:1px solid var(--border);margin:12px 0;}
+.sec-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;padding:6px 10px;background:var(--surface2);border-radius:8px;display:block;}
+
+/* Preview box */
+.preview-box{border-radius:12px;padding:12px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;line-height:2;}
+.preview-box.good{background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.2);}
+.preview-box.bad{background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);}
+.preview-box.neutral{background:var(--surface2);border:1.5px solid var(--border);}
+.preview-row{display:flex;justify-content:space-between;}
+.preview-row .lbl{color:var(--muted);}
+.preview-row .val{font-weight:800;}
+
+/* Info box */
+.info-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.8;}
+
+/* Filter tabs */
+.filter-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;}
+.ftab{background:none;border:1.5px solid var(--border);color:var(--muted);font-family:var(--font);font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;cursor:pointer;transition:all .2s;}
+.ftab:hover{border-color:var(--gold);color:var(--gold);}
+.ftab.active{background:var(--gold);border-color:var(--gold);color:#000;}
+
+/* Product cards */
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.prod-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
+  padding:14px;box-shadow:var(--shadow);transition:border-color .2s,transform .2s;
+  cursor:default;
+}
+.prod-card:hover{border-color:rgba(245,197,24,.3);transform:translateY(-2px);}
+.prod-card.low{border-color:rgba(245,158,11,.4);}
+.prod-card.out{border-color:rgba(239,68,68,.4);}
+.prod-icon{font-size:26px;margin-bottom:6px;}
+.prod-nom{font-family:var(--font);font-weight:800;font-size:13px;margin-bottom:3px;}
+.prod-type{font-size:10px;color:var(--muted);margin-bottom:8px;}
+.prod-stock{font-family:var(--mono);font-weight:800;font-size:22px;}
+.prod-sub{font-size:10px;color:var(--muted);font-family:var(--mono);}
+.prod-actions{display:flex;gap:4px;margin-top:10px;}
+
+/* Tournée card */
+.tournee-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
+.t-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.t-avatar{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.t-avatar.voiture{background:rgba(59,130,246,.15);}
+.t-avatar.depot{background:rgba(245,197,24,.15);}
+.t-avatar.chariot{background:rgba(16,185,129,.15);}
+.t-info{flex:1;}
+.t-nom{font-family:var(--font);font-weight:800;font-size:14px;}
+.t-date{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.t-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.t-stat{text-align:center;background:var(--surface2);border-radius:8px;padding:7px 4px;}
+.t-stat-val{font-family:var(--mono);font-weight:800;font-size:15px;}
+.t-stat-lbl{font-size:9px;color:var(--muted);margin-top:1px;}
+
+/* Commande card */
+.cmd-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
+
+/* Star produit */
+.star-card{
+  background:linear-gradient(135deg,rgba(245,197,24,.1),rgba(245,197,24,.05));
+  border:1.5px solid rgba(245,197,24,.3);border-radius:16px;padding:16px;
+  margin-bottom:14px;display:flex;align-items:center;gap:14px;
+  box-shadow:0 4px 20px rgba(245,197,24,.1);
+}
+.star-icon{font-size:36px;}
+.star-info{flex:1;}
+.star-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:4px;}
+.star-nom{font-size:18px;font-weight:800;}
+.star-stats{font-size:12px;color:var(--muted);font-family:var(--mono);}
+
+/* Bilan row */
+.bilan-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.bilan-row:last-child{border-bottom:none;}
+.bilan-lbl{color:var(--muted);font-size:13px;}
+.bilan-val{font-family:var(--mono);font-weight:800;font-size:14px;}
+
+/* Analyse */
+.analyse-bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-top:4px;}
+.analyse-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .5s ease;}
+
+.empty{text-align:center;padding:44px 20px;color:var(--muted);}
+.empty .e-icon{font-size:40px;margin-bottom:10px;}
+
+/* ADMIN */
+#screen-admin{display:none;min-height:100vh;background:var(--bg);}
+.admin-box{max-width:500px;margin:40px auto;padding:20px;}
+
+/* MODULE IA */
+.ia-input{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;
+  padding:14px;color:var(--text);font-family:var(--mono);font-size:13px;resize:vertical;
+  min-height:120px;outline:none;transition:border-color .2s;line-height:1.6;}
+.ia-input:focus{border-color:var(--gold);}
+.ia-result{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
+  padding:16px;margin-top:12px;display:none;}
+.ia-result.show{display:block;}
+.ia-result-title{font-size:13px;font-weight:800;color:var(--gold);margin-bottom:12px;}
+.ia-action-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.ia-action-icon{font-size:22px;flex-shrink:0;}
+.ia-action-info{flex:1;}
+.ia-action-nom{font-family:var(--font);font-weight:800;font-size:14px;}
+.ia-action-detail{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+.ia-action-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.ia-action-badge.entree{background:rgba(16,185,129,.15);color:var(--success);}
+.ia-action-badge.sortie{background:rgba(245,197,24,.15);color:var(--gold);}
+.ia-action-badge.vente{background:rgba(59,130,246,.15);color:var(--accent);}
+.ia-thinking{text-align:center;padding:24px;color:var(--muted);}
+.ia-thinking .spin{display:inline-block;font-size:28px;animation:spin 1s linear infinite;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.guide-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.guide-card-title{font-size:15px;font-weight:800;color:var(--gold);margin-bottom:6px;}
+.guide-card-desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;}
+.guide-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.guide-step-item{display:flex;gap:10px;align-items:flex-start;}
+.guide-num{width:26px;height:26px;border-radius:50%;background:var(--gold);color:#000;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.guide-text{font-size:12px;color:var(--text);line-height:1.6;padding-top:3px;}
+.guide-tip{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:10px 13px;font-size:12px;color:var(--muted);line-height:1.6;}
+
+@media(max-width:599px){.form-grid{grid-template-columns:1fr;}.t-stats{grid-template-columns:repeat(2,1fr);}}
+.client-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}
+.client-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:15px;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s,border-color .15s;}
+.client-card:hover{transform:translateY(-2px);border-color:var(--gold);}
+.client-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.client-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.15);font-size:19px;flex-shrink:0;}
+.client-name{font-size:14px;font-weight:800;}.client-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.client-balances{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border-top:1px solid var(--border);padding-top:10px;}
+.client-balance{text-align:center;background:var(--surface2);border-radius:8px;padding:7px 3px;}.client-balance b{display:block;font-family:var(--mono);font-size:12px;}.client-balance span{font-size:9px;color:var(--muted);}
+.balance-danger{color:var(--danger)}.balance-warn{color:var(--warn)}.balance-ok{color:var(--success)}
+.client-detail{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+.client-detail-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;}.client-detail-title{font-size:18px;font-weight:900;}.client-detail-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+.client-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;}.client-summary .stat-card{padding:11px;}.client-summary .stat-value{font-size:16px;}
+.client-history{max-height:310px;overflow:auto;}.client-movement{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:9px 0;font-size:11px;}.client-movement:last-child{border-bottom:0;}.client-movement strong{font-size:12px;}.movement-plus{color:var(--danger)}.movement-minus{color:var(--success)}
+@media(max-width:599px){.client-summary{grid-template-columns:1fr;}.client-balances{gap:3px;}}
+
+/* ══════════════════════════════════════════════════════
+   REFONTE VISUELLE v2 — surcouche CSS (DOM et JS inchangés)
+   ══════════════════════════════════════════════════════ */
+:root{
+  --bg:#0b1020;--surface:#131b2e;--surface2:#1a2440;--border:#2a3a5e;
+  --gold:#f5c518;--gold2:#e8a800;--accent:#3b82f6;--success:#22c55e;
+  --danger:#f87171;--warn:#fbbf24;--text:#f8fafc;--muted:#a3b1c6;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 6px 24px rgba(0,0,0,.35);
+  --glow:0 0 0 1px rgba(245,197,24,.25),0 8px 30px rgba(245,197,24,.12);
+}
+body{font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+body.light-mode{
+  --bg:#f5f7fb;--surface:#ffffff;--surface2:#eef2f8;--border:#dde3ee;
+  --text:#0f172a;--muted:#475569;--shadow:0 4px 16px rgba(15,23,42,.08);
+}
+/* Texte doré lisible sur fond clair */
+body.light-mode .c-gold,
+body.light-mode .plan-price,
+body.light-mode .guide-section h2,
+body.light-mode .guide-card-title,
+body.light-mode .ia-result-title,
+body.light-mode .star-label,
+body.light-mode .plan-badge{color:#b45309;}
+
+/* Focus visible et champs */
+button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus,
+.search-box:focus,.act-input:focus,.ia-input:focus{box-shadow:0 0 0 3px rgba(245,197,24,.18);}
+
+/* Header */
+.app-header{
+  background:color-mix(in srgb,var(--surface) 92%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);box-shadow:0 1px 0 rgba(255,255,255,.02),var(--shadow);
+}
+.app-logo{font-size:17px;letter-spacing:-.3px;}
+.nav-btn{font-size:12px;padding:8px 12px;}
+.nav-btn.active{box-shadow:0 2px 10px rgba(245,197,24,.25);}
+.ipill{min-height:32px;}
+
+/* Titres de section */
+.page-title{font-size:19px;letter-spacing:-.2px;margin-bottom:16px;}
+
+/* Stats : hiérarchie des chiffres renforcée */
+.stat-card{
+  position:relative;overflow:hidden;
+  background:linear-gradient(160deg,var(--surface) 0%,var(--surface2) 100%);
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;
+}
+.stat-card::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--gold);}
+.stat-card:has(.c-blue)::before{background:var(--accent);}
+.stat-card:has(.c-green)::before{background:var(--success);}
+.stat-card:has(.c-red)::before{background:var(--danger);}
+.stat-card:has(.c-warn)::before{background:var(--warn);}
+.stat-label{font-size:10.5px;letter-spacing:.8px;margin-bottom:6px;}
+.stat-value{font-size:24px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;}
+
+/* Cartes */
+.tournee-card,.cmd-card,.guide-card,.client-card,.client-detail,.prod-card{border-radius:var(--radius);}
+.tournee-card:hover,.client-card:hover{border-color:rgba(245,197,24,.35);}
+.t-avatar{width:42px;height:42px;border-radius:12px;font-size:19px;}
+.t-nom{font-size:15px;}
+.t-stat{border:1px solid var(--border);}
+.t-stat-val{font-size:16px;font-variant-numeric:tabular-nums;}
+.prod-stock{font-size:24px;}
+.prod-nom{font-size:14px;}
+
+/* Tableaux : lisibilité */
+.table-wrap{border-radius:var(--radius);}
+th{font-size:10.5px;padding:11px 14px;}
+td{padding:11px 14px;font-size:13px;font-variant-numeric:tabular-nums;}
+
+/* Boutons : zones tactiles plus confortables */
+.btn{padding:10px 16px;min-height:40px;font-size:13px;border-radius:var(--radius-sm);
+  box-shadow:0 2px 10px rgba(245,197,24,.18);}
+.btn.sm{min-height:34px;padding:7px 12px;font-size:12px;box-shadow:none;}
+.btn.secondary{box-shadow:none;}
+.btn.danger,.btn.success{box-shadow:none;}
+.icon-btn{min-width:36px;min-height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;}
+.ftab{min-height:34px;}
+
+/* Modales : titres et champs plus nets */
+.modal{border-radius:22px;padding:24px;}
+.modal-title{font-size:17px;letter-spacing:-.2px;}
+.form-row label{font-size:10.5px;}
+.form-row input,.form-row select,.form-row textarea{min-height:42px;}
+
+/* Mobile */
+@media(max-width:768px){
+  .app-header{height:auto;min-height:52px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));flex-wrap:wrap;row-gap:4px;}
+  .nav-wrap{order:3;width:100%;flex-basis:100%;}
+  .nav-btn{padding:9px 14px;font-size:13px;}
+  main{padding:12px 12px 32px;}
+  .stats-bar{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .stat-card{padding:12px 14px;}
+  .stat-value{font-size:20px;}
+  .filter-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;}
+  .filter-tabs::-webkit-scrollbar{display:none;}
+  .ftab{flex-shrink:0;}
+  .overlay{align-items:flex-end;padding:0;}
+  .modal{width:100%;max-width:100%;max-height:90vh;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));}
+  .form-row input,.form-row select,.form-row textarea{font-size:16px;}
+  .act-input{font-size:18px;}
+  .activation-box{width:92%;padding:24px;}
+  .t-stats{grid-template-columns:repeat(2,1fr);}
+  .tournee-card{padding:12px;}
+  td{padding:9px 10px;}
+  .btn{min-height:42px;}
+  .btn.sm{min-height:38px;}
+}
+
+</style>
+</head>
+<body>
+
+<!-- ══ ÉCRAN MARKETING ══ -->
+<div id="screen-marketing">
+  <div class="mkt-header">
+    <div class="mkt-logo">Boissons<span>Manager</span><small>Gestion de Dépôt Professionnel</small></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-outline" style="padding:8px 16px;font-size:12px;" onclick="showGuide()">📖 Guide</button>
+      <button class="btn-gold" style="padding:8px 16px;font-size:12px;" onclick="showActivation()">🚀 Commencer</button>
+    </div>
+  </div>
+
+  <div class="mkt-hero">
+    <div class="mkt-badge">🇬🇦 Fait pour les dépôts au Gabon et en Afrique</div>
+    <h1 class="mkt-title">Gérez votre dépôt<br>de <span>boissons</span><br>comme un pro</h1>
+    <p class="mkt-sub">Tournées, casiers, commandes Sobraga, analyse des ventes — tout en un. Simple, rapide, efficace.</p>
+
+    <div class="bottles-row">
+      <div class="bottle bottle-1"><div class="bottle-label">Coca</div></div>
+      <div class="bottle bottle-2"><div class="bottle-label">Régab</div></div>
+      <div class="bottle bottle-3"><div class="bottle-label">Vino</div></div>
+      <div class="bottle bottle-4"><div class="bottle-label">Castel</div></div>
+      <div class="bottle bottle-5"><div class="bottle-label">Fanta</div></div>
+    </div>
+
+    <div class="mkt-features">
+      <div class="feature-card">
+        <div class="feature-icon">🚗</div>
+        <div class="feature-title">Gestion des Tournées</div>
+        <div class="feature-desc">Véhicules, chariots et ventes directes au dépôt. Chargement, retours, invendus. Calcul automatique de la recette.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📦</div>
+        <div class="feature-title">Casiers Vides</div>
+        <div class="feature-desc">Vérifiez les retours de bouteilles vides. Calculez les pertes. Gérez les envois à Sobraga.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">Analyse des Ventes</div>
+        <div class="feature-desc">Boisson star, meilleur jour, comparaison semaines. Visualisez vos performances.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏆</div>
+        <div class="feature-title">Demi-casiers</div>
+        <div class="feature-desc">Vente par casier entier, demi-casier ou quantité personnalisée. Souplesse totale.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <div class="feature-title">Commandes Fournisseurs</div>
+        <div class="feature-desc">Sobraga et autres fournisseurs. Suivi des livraisons et vérification des quantités.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💾</div>
+        <div class="feature-title">Sauvegarde Facile</div>
+        <div class="feature-desc">Sauvegardez vos données dans un fichier sécurisé et restaurez-les à tout moment.</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:18px;font-weight:800;margin-bottom:16px;">Choisissez votre formule</h2>
+    <div class="mkt-plans">
+      <div class="plan-card">
+        <div class="plan-badge">Essai</div>
+        <div class="plan-name">Test</div>
+        <div class="plan-price">Gratuit<span> / 7 jours</span></div>
+        <div class="plan-features">✅ Toutes les fonctionnalités<br>⏱️ Limité à 7 jours<br>📱 1 appareil</div>
+        <button class="btn secondary plan-btn" onclick="activerEssaiGratuit()">Essayer gratuitement</button>
+      </div>
+      <div class="plan-card" id="monthly-card">
+        <div class="plan-badge" id="monthly-badge">Mensuel</div>
+        <div class="plan-name">Mensuel</div>
+        <div class="plan-price" id="monthly-price">5 900<span> FCFA/mois</span></div>
+        <div class="plan-features">✅ Toutes les fonctionnalités<br>🔄 Renouvellement mensuel<br>📱 1 appareil<br>📞 Support</div>
+        <button class="btn-gold plan-btn" onclick="showActivation()">Activer</button>
+      </div>
+      <div class="plan-card featured" id="monthly2-card">
+        <div class="plan-badge" id="monthly2-badge">⭐ Populaire</div>
+        <div class="plan-name">Bimensuel</div>
+        <div class="plan-price" id="monthly2-price">8 900<span> FCFA/2 mois</span></div>
+        <div class="plan-features">✅ Toutes les fonctionnalités<br>🔄 Valable 60 jours<br>📱 1 appareil<br>📞 Support</div>
+        <button class="btn secondary plan-btn" onclick="showActivation()">Activer</button>
+      </div>
+      <div class="plan-card" id="monthly3-card">
+        <div class="plan-badge" id="monthly3-badge">Trimestre</div>
+        <div class="plan-name">Trimestriel</div>
+        <div class="plan-price" id="monthly3-price">11 900<span> FCFA/3 mois</span></div>
+        <div class="plan-features">✅ Toutes les fonctionnalités<br>🔄 Valable 90 jours<br>📱 1 appareil<br>📞 Support</div>
+        <button class="btn secondary plan-btn" onclick="showActivation()">Activer</button>
+      </div>
+      <div class="plan-card" id="lifetime-card">
+        <div class="plan-badge" id="lifetime-badge">À vie</div>
+        <div class="plan-name">Définitif</div>
+        <div class="plan-price" id="lifetime-price">50 200<span> FCFA / une fois</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:-4px;margin-bottom:4px;">📞 Nous contacter pour finaliser : +241 76 32 21 72</div>
+        <div class="plan-features">✅ Toutes les fonctionnalités<br>♾️ Sans limite de temps<br>📱 1 appareil<br>🔄 Mises à jour<br>💰 Paiement en une fois</div>
+        <button class="btn secondary plan-btn" onclick="showActivation()">Acheter</button>
+      </div>
+    </div>
+
+    <div style="max-width:400px;margin:0 auto 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px;">🏷️ Vous avez un code promo ?</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="promo-code-input" placeholder="Entrez votre code" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-family:var(--mono);text-transform:uppercase;">
+        <button class="btn secondary sm" onclick="appliquerCodePromo()">Appliquer</button>
+      </div>
+      <div id="promo-code-msg" style="font-size:11px;margin-top:8px;display:none;"></div>
+    </div>
+
+    <div class="mkt-cta">
+      <button class="btn-gold" onclick="showActivation()">🚀 Activer BoissonsManager</button>
+      <button class="btn-outline" onclick="showGuide()">📖 Voir le guide</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);">Contactez le développeur pour obtenir votre code d'activation</p>
+  </div>
+</div>
+
+<!-- ══ ÉCRAN GUIDE ══ -->
+<div id="screen-guide">
+  <div class="guide-header">
+    <button class="btn secondary sm" onclick="showMarketing()">← Retour</button>
+    <div style="font-size:16px;font-weight:800;">📖 Guide d'utilisation</div>
+  </div>
+  <div class="guide-content">
+    <div class="guide-section">
+      <h2>🍺 Bienvenue dans BoissonsManager</h2>
+      <p>BoissonsManager est une application de gestion complète pour les dépôts de boissons au Gabon et en Afrique. Elle vous permet de gérer votre stock, vos tournées, vos ventes au dépôt, vos clients et dettes, les casiers vides et vos commandes fournisseurs.</p>
+    </div>
+    <div class="guide-section">
+      <h2>📦 1. Gérer votre Stock</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Allez dans <b>🍺 Stock</b> et cliquez sur <b>+ Ajouter boisson</b></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Choisissez le type : <b>Casier 24 btl</b>, <b>Casier 12 btl</b> ou <b>Plastique</b> (vino, jus...)</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Entrez le stock actuel, le prix d'achat et de vente par casier</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">L'appli calcule automatiquement votre <b>bénéfice potentiel</b></div></div>
+    </div>
+    <div class="guide-section">
+      <h2>🚗 2. Gérer les Tournées</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Allez dans <b>🚗 Tournées</b> → <b>+ Nouvelle tournée</b></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Choisissez <b>Véhicule</b> ou <b>Chariot</b>, entrez le nom du vendeur</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Ajoutez les boissons chargées avec la quantité. Vous pouvez mettre des <b>demi-casiers</b> (ex: 2.5)</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Au retour, cliquez sur <b>📥 Retour</b> et entrez les invendus. L'appli calcule la recette</div></div>
+    </div>
+    <div class="guide-section">
+      <h2>🏪 Vente directe au dépôt</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Allez dans <b>🚗 Tournées</b> → <b>🏪 Vente au dépôt</b></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Indiquez le client (facultatif), ajoutez les boissons vendues et leurs quantités</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Cliquez <b>✅ Valider la vente</b> : le stock est déduit tout de suite, sans retour à enregistrer</div></div>
+    </div>
+    <div class="guide-section">
+      <h2>📦 3. Casiers Vides</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Allez dans <b>📦 Casiers Vides</b> pour voir les casiers attendus par tournée et par vente au dépôt</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Cliquez <b>Confirmer</b> pour entrer les casiers complets et bouteilles en vrac reçus</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">L'appli calcule automatiquement les <b>pertes</b> en bouteilles</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Enregistrez les envois à <b>Sobraga</b> en bas de page</div></div>
+    </div>
+    <div class="guide-section">
+      <h2>📋 4. Commandes Fournisseurs</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ajoutez vos fournisseurs (Sobraga et autres) dans la section <b>Commandes</b></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Créez une commande, entrez les boissons et quantités commandées</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">À la livraison, vérifiez les quantités reçues. L'appli détecte les manques</div></div>
+    </div>
+    <div class="guide-section">
+      <h2>📊 5. Analyser les performances</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Dans <b>📊 Analyse</b>, voyez votre <b>boisson star</b> (la plus vendue)</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Identifiez le <b>meilleur jour</b> de la semaine pour les ventes</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Comparez les performances par vendeur (véhicule vs chariot)</div></div>
+    </div>
+    <div class="guide-section">
+      <h2>💾 6. Sauvegarder vos données</h2>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Cliquez <b>💾 Export</b> dans le menu → téléchargez le fichier</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Conservez le fichier .json précieusement sur votre appareil</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Pour restaurer : cliquez <b>📥 Import</b> → sélectionnez votre fichier de sauvegarde (.json)</div></div>
+    </div>
+    <div style="text-align:center;margin-top:20px;">
+      <button class="btn-gold" onclick="showActivation()">🚀 Commencer maintenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ÉCRAN ACTIVATION ══ -->
+<div id="screen-activation" style="display:none;min-height:100vh;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;">
+  <div class="activation-box">
+    <div class="act-icon">🔐</div>
+    <div class="act-title">Activer BoissonsManager</div>
+    <div class="act-sub">Entrez votre code d'activation fourni par le développeur. Contactez-le pour obtenir votre code.</div>
+    <input class="act-input" type="text" id="act-code" placeholder="Ex: ESSAI2024" maxlength="20" style="letter-spacing:3px;" onkeydown="if(event.key==='Enter')activerLicence()">
+    <div class="act-error" id="act-error">❌ Code invalide. Contactez le développeur.</div>
+    <button class="btn-gold" style="width:100%;padding:12px;" onclick="activerLicence()">✅ Activer</button>
+    <div class="act-info">Pas encore de code ? <br>Contactez le développeur pour acheter ou tester l'appli.</div>
+    <div style="margin-top:16px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;">
+      <button onclick="resetLicence()" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;">Problème d'activation ? Réinitialiser</button>
+    </div>
+  </div>
+  <button class="btn-outline" style="margin-top:16px;padding:8px 20px;font-size:12px;" onclick="showMarketing()">← Retour</button>
+</div>
+
+<!-- ══ SIDEBAR MENU ══ -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">🍺<span>BM</span></div>
+    <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+  </div>
+  <nav class="sidebar-nav">
+    <button onclick="showSection('stock',this);toggleSidebar()" class="active">🍺 Stock</button>
+    <button onclick="showSection('tournees',this);toggleSidebar()">🚗 Tournées</button>
+    <button onclick="showSection('clients',this);toggleSidebar()">👥 Clients</button>
+    <button onclick="showSection('casiers-vides',this);toggleSidebar()">📦 Casiers</button>
+    <button onclick="showSection('commandes',this);toggleSidebar()">📋 Commandes</button>
+    <button onclick="showSection('analyse',this);toggleSidebar()">📊 Analyse</button>
+    <button onclick="showSection('rapport',this);toggleSidebar()">📄 Rapport</button>
+    <button onclick="showSection('ia',this);toggleSidebar()">🤖 IA</button>
+    <button onclick="showSection('aide',this);toggleSidebar()">❓ Aide</button>
+    <button onclick="showSection('parametres',this);toggleSidebar()">⚙️ Paramètres</button>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙 Mode sombre</button>
+  </div>
+</div>
+
+<!-- ══ APP PRINCIPALE ══ -->
+<div id="screen-app">
+  <div class="app-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="app-logo">🍺<span>BM</span></div>
+    <div class="nav-wrap">
+      <nav class="nav">
+        <button class="nav-btn active" onclick="showSection('stock',this)">🍺 Stock</button>
+        <button class="nav-btn" onclick="showSection('tournees',this)">🚗 Tournées</button>
+        <button class="nav-btn" onclick="showSection('clients',this)">👥 Clients</button>
+        <button class="nav-btn" onclick="showSection('casiers-vides',this)">📦 Casiers</button>
+        <button class="nav-btn" onclick="showSection('commandes',this)">📋 Commandes</button>
+        <button class="nav-btn" onclick="showSection('analyse',this)">📊 Analyse</button>
+        <button class="nav-btn" onclick="showSection('rapport',this)">📄 Rapport</button>
+        <button class="nav-btn" onclick="showSection('ia',this)">🤖 IA</button>
+        <button class="nav-btn" onclick="showSection('aide',this)">❓ Aide</button>
+        <button class="nav-btn" onclick="showSection('parametres',this)">⚙️ Paramètres</button>
+      </nav>
+    </div>
+    <div class="hdr-right">
+      <span class="lic-badge" id="lic-badge">⏳ Essai</span>
+      <button class="ipill" onclick="openExport()">💾</button>
+      <button class="ipill" onclick="openImport()">📥</button>
+      <button class="ipill" onclick="toggleTheme()" id="theme-toggle-header" title="Mode clair/sombre">🌙</button>
+      <button class="ipill" onclick="openAdmin()" title="Admin">⚙️</button>
+    </div>
+  </div>
+
+  <main>
+    <!-- STATS -->
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-label">Casiers en stock</div><div class="stat-value c-gold" id="stat-casiers">0</div></div>
+      <div class="stat-card"><div class="stat-label">Tournées actives</div><div class="stat-value c-blue" id="stat-tournees">0</div></div>
+      <div class="stat-card"><div class="stat-label">CA aujourd'hui</div><div class="stat-value c-green" id="stat-ca">0</div></div>
+      <div class="stat-card"><div class="stat-label">Pertes bouteilles</div><div class="stat-value c-red" id="stat-pertes">0</div></div>
+    </div>
+
+    <!-- STOCK -->
+    <div id="sec-stock" class="section active">
+      <div class="page-title">
+        <div class="dot"></div>Stock Boissons
+        <button class="btn sm" style="margin-left:auto;" onclick="openModalProduit()">+ Ajouter boisson</button>
+      </div>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="setFilter('stock','tous',this)">Tous</button>
+        <button class="ftab" onclick="setFilter('stock','casier',this)">📦 Casiers</button>
+        <button class="ftab" onclick="setFilter('stock','plastique',this)">🧴 Plastiques</button>
+      </div>
+      <div class="prod-grid" id="prod-grid"></div>
+    </div>
+
+    <!-- TOURNÉES -->
+    <div id="sec-tournees" class="section">
+      <div class="page-title">
+        <div class="dot"></div>Tournées
+        <button class="btn sm" style="margin-left:auto;" onclick="openModalDepot()">🏪 Vente au dépôt</button>
+        <button class="btn sm" style="margin-left:8px;" onclick="openModalTournee()">+ Nouvelle tournée</button>
+      </div>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="setFilter('tournees','all',this)">Toutes</button>
+        <button class="ftab" onclick="setFilter('tournees','voiture',this)">🚗 Véhicule</button>
+        <button class="ftab" onclick="setFilter('tournees','chariot',this)">🛒 Chariot</button>
+        <button class="ftab" onclick="setFilter('tournees','depot',this)">🏪 Dépôt</button>
+        <button class="ftab" onclick="setFilter('tournees','open',this)">⏳ En cours</button>
+      </div>
+      <div id="tournees-list"></div>
+    </div>
+
+    <!-- CLIENTS / COMPTES -->
+    <div id="sec-clients" class="section">
+      <div class="page-title"><div class="dot"></div>Comptes Clients
+        <button class="btn sm" style="margin-left:auto;" onclick="openClientModal()">+ Nouveau client</button>
+      </div>
+      <div class="stats-bar" style="margin-bottom:12px;">
+        <div class="stat-card"><div class="stat-label">Clients</div><div class="stat-value c-blue" id="clients-count">0</div></div>
+        <div class="stat-card"><div class="stat-label">À recouvrer</div><div class="stat-value c-red" id="clients-dettes">0</div></div>
+        <div class="stat-card"><div class="stat-label">Casiers dus</div><div class="stat-value c-warn" id="clients-casiers">0</div></div>
+        <div class="stat-card"><div class="stat-label">Bouteilles dues</div><div class="stat-value c-red" id="clients-bouteilles">0</div></div>
+      </div>
+      <div class="toolbar">
+        <input id="clients-search" class="search-box" placeholder="Rechercher un client..." oninput="renderClients()">
+        <button class="btn secondary" onclick="showClientDetail(null)">📋 Vue générale</button>
+      </div>
+      <div id="client-detail-zone"></div>
+      <div id="clients-list" class="client-grid"></div>
+    </div>
+
+    <!-- CASIERS VIDES -->
+    <div id="sec-casiers-vides" class="section">
+      <div class="page-title"><div class="dot"></div>Gestion Casiers Vides</div>
+
+      <!-- BANDEAU OPTIONNEL -->
+      <div style="background:rgba(245,197,24,.08);border:1.5px solid rgba(245,197,24,.25);border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:6px;">💡 Section optionnelle — mais recommandée</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+          Vous n'êtes <b style="color:var(--text)">pas obligé</b> d'utiliser cette section. Ignorez-la si vous ne souhaitez pas suivre les bouteilles vides.<br><br>
+          <b style="color:var(--text)">Pourquoi l'utiliser ?</b> Chaque bouteille vide a une valeur que Sobraga reprend. Si un vendeur revient avec des casiers vendus mais pas assez de bouteilles vides, vous perdez de l'argent sans le savoir. Cette section vous permet de détecter ces pertes avant qu'elles ne s'accumulent.
+        </div>
+      </div>
+      <div class="stats-bar" style="margin-bottom:14px;">
+        <div class="stat-card"><div class="stat-label">Attendus</div><div class="stat-value c-warn" id="cv-attendus">0</div></div>
+        <div class="stat-card"><div class="stat-label">Reçus</div><div class="stat-value c-green" id="cv-recus">0</div></div>
+        <div class="stat-card"><div class="stat-label">Pertes (btl)</div><div class="stat-value c-red" id="cv-pertes">0</div></div>
+        <div class="stat-card"><div class="stat-label">→ Sobraga</div><div class="stat-value c-blue" id="cv-sobraga">0</div></div>
+      </div>
+      <div class="page-title" style="font-size:14px;margin-bottom:10px;"><div class="dot"></div>Retours par tournée</div>
+      <div class="table-wrap" style="margin-bottom:16px;">
+        <table>
+          <thead><tr><th>Vendeur</th><th>Type</th><th>Vendus</th><th>Vides reçus</th><th>Pertes</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="cv-tbody"></tbody>
+        </table>
+      </div>
+      <div class="page-title" style="font-size:14px;margin-bottom:10px;"><div class="dot"></div>Envoi à Sobraga</div>
+      <div class="toolbar">
+        <input type="number" id="sobraga-nb" min="0" placeholder="Nombre de casiers vides..." class="search-box">
+        <button class="btn success" onclick="envoyerSobraga()">✅ Enregistrer envoi</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Date</th><th>Casiers envoyés</th><th>Notes</th></tr></thead>
+        <tbody id="sobraga-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- COMMANDES -->
+    <div id="sec-commandes" class="section">
+      <div class="page-title">
+        <div class="dot"></div>Commandes Fournisseurs
+        <div style="margin-left:auto;display:flex;gap:8px;">
+          <button class="btn secondary sm" onclick="openModalFournisseur()">+ Fournisseur</button>
+          <button class="btn sm" onclick="openModalCommande()">+ Commande</button>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;" id="fournisseurs-list"></div>
+      <div class="page-title" style="font-size:14px;"><div class="dot"></div>Historique commandes</div>
+      <div id="commandes-list"></div>
+    </div>
+
+    <!-- ANALYSE -->
+    <div id="sec-analyse" class="section">
+      <div class="page-title"><div class="dot"></div>Analyse des Ventes</div>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="setFilter('analyse','week',this)">7 jours</button>
+        <button class="ftab" onclick="setFilter('analyse','month',this)">30 jours</button>
+        <button class="ftab" onclick="setFilter('analyse','all',this)">Tout</button>
+      </div>
+      <div id="star-produit"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;" id="analyse-mini-stats"></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:12px;">📊 Ventes par boisson</div>
+        <div id="analyse-boissons"></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:12px;">📅 Meilleur jour de la semaine</div>
+        <div id="analyse-jours"></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:12px;">👤 Performance par vendeur</div>
+        <div id="analyse-vendeurs"></div>
+      </div>
+    </div>
+
+    <!-- RAPPORT -->
+    <div id="sec-rapport" class="section">
+      <div class="page-title"><div class="dot"></div>Rapport</div>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="setFilter('rapport','today',this)">Aujourd'hui</button>
+        <button class="ftab" onclick="setFilter('rapport','week',this)">Cette semaine</button>
+        <button class="ftab" onclick="setFilter('rapport','month',this)">Ce mois</button>
+      </div>
+      <div id="rapport-content"></div>
+    </div>
+    <!-- MODULE IA -->
+    <div id="sec-ia" class="section">
+      <div class="page-title"><div class="dot"></div>Entrée Rapide par IA 🤖</div>
+
+      <!-- NOTICE INTERNET -->
+      <div style="background:rgba(59,130,246,.08);border:1.5px solid rgba(59,130,246,.25);border-radius:14px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.7;">
+        🌐 <b style="color:var(--accent);">Nécessite une connexion internet.</b> Ce module utilise l'intelligence artificielle pour analyser vos messages et mettre à jour le stock automatiquement.
+      </div>
+
+      <!-- EXPLICATION -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:8px;">💡 Comment ça marche ?</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+          Collez n'importe quel message brut — un SMS, un message WhatsApp, une note vocale transcrite — et l'IA détecte automatiquement les produits, quantités et actions à effectuer.<br><br>
+          <b style="color:var(--text);">Exemples de messages acceptés :</b>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="background:var(--surface2);border-radius:8px;padding:8px 12px;font-size:11px;font-family:var(--mono);color:var(--text);">"Ali a vendu 15 casiers Régab et ramené 3 invendus Castel"</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:8px 12px;font-size:11px;font-family:var(--mono);color:var(--text);">"Livraison reçue : 20 casiers Coca et 10 casiers Beaufort"</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:8px 12px;font-size:11px;font-family:var(--mono);color:var(--text);">"Le chauffeur a vendu 8 caisses de bière et 5 vino"</div>
+        </div>
+      </div>
+
+      <!-- ZONE DE SAISIE -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px;">📝 Collez votre message ici</div>
+        <textarea class="ia-input" id="ia-texte" placeholder="Ex: Ali a vendu 15 casiers Régab et ramené 3 invendus Castel..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn" onclick="analyserIA()" id="ia-btn" style="flex:1;">🤖 Analyser avec l'IA</button>
+          <button class="btn secondary" onclick="document.getElementById('ia-texte').value='';document.getElementById('ia-result').classList.remove('show');">🗑️ Effacer</button>
+        </div>
+      </div>
+
+      <!-- RÉSULTAT IA -->
+      <div class="ia-result" id="ia-result">
+        <div class="ia-result-title" id="ia-result-title">🤖 Analyse en cours...</div>
+        <div id="ia-result-content"></div>
+        <div id="ia-apply-zone" style="display:none;margin-top:14px;">
+          <button class="btn success" onclick="appliquerIA()" style="width:100%;padding:12px;">✅ Appliquer les modifications au stock</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIDE -->
+    <div id="sec-aide" class="section">
+      <div class="page-title"><div class="dot"></div>Guide d'utilisation</div>
+
+      <!-- NAVIGATION RAPIDE -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="ftab active" onclick="scrollToGuide('g-stock',this)">🍺 Stock</button>
+        <button class="ftab" onclick="scrollToGuide('g-tournees',this)">🚗 Tournées</button>
+        <button class="ftab" onclick="scrollToGuide('g-depot',this)">🏪 Dépôt</button>
+        <button class="ftab" onclick="scrollToGuide('g-clients',this)">👥 Clients</button>
+        <button class="ftab" onclick="scrollToGuide('g-casiers',this)">📦 Casiers vides</button>
+        <button class="ftab" onclick="scrollToGuide('g-commandes',this)">📋 Commandes</button>
+        <button class="ftab" onclick="scrollToGuide('g-analyse',this)">📊 Analyse</button>
+        <button class="ftab" onclick="scrollToGuide('g-sauvegarde',this)">💾 Sauvegarde</button>
+        <button class="ftab" onclick="scrollToGuide('g-astuces',this)">💡 Astuces</button>
+      </div>
+
+      <!-- STOCK -->
+      <div id="g-stock" class="guide-card">
+        <div class="guide-card-title">🍺 Gérer votre Stock</div>
+        <p class="guide-card-desc">Enregistrez toutes vos boissons avec leur type, stock et prix.</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Allez dans <b>🍺 Stock</b> → cliquez <b>+ Ajouter boisson</b></div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text">Choisissez le type : <b>Casier 24 btl</b>, <b>Casier 12 btl</b> ou <b>🧴 Plastique</b> (vino, jus...)</div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text">Entrez le stock actuel, le prix d'achat et de vente par casier</div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text">L'appli calcule votre <b>bénéfice potentiel</b> automatiquement</div></div>
+        </div>
+        <div class="guide-tip">💡 <b>Astuce :</b> Cliquez sur 📥 pour réapprovisionner un produit rapidement sans modifier toute la fiche.</div>
+      </div>
+
+      <!-- TOURNÉES -->
+      <div id="g-tournees" class="guide-card">
+        <div class="guide-card-title">🚗 Gérer les Tournées</div>
+        <p class="guide-card-desc">Enregistrez chaque sortie de véhicule ou chariot, et chaque vente directe au dépôt, puis calculez la recette automatiquement.</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Allez dans <b>🚗 Tournées</b> → <b>+ Nouvelle tournée</b></div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text">Choisissez <b>🚗 Véhicule</b> ou <b>🛒 Chariot</b> et entrez le nom du vendeur</div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text">Ajoutez les boissons chargées et les quantités. <b>Les demi-casiers sont acceptés</b> : 1.5, 2.5, etc.</div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text">Cliquez <b>🚀 Démarrer</b> — le stock se met à jour automatiquement</div></div>
+          <div class="guide-step-item"><div class="guide-num">5</div><div class="guide-text">Au retour du vendeur, cliquez <b>📥 Retour</b> et entrez les invendus</div></div>
+          <div class="guide-step-item"><div class="guide-num">6</div><div class="guide-text">L'appli calcule : casiers vendus, recette totale et bénéfice</div></div>
+        </div>
+        <div class="guide-tip">💡 <b>Demi-casiers :</b> Si un vendeur part avec 2.5 casiers, entrez <b>2.5</b> — l'appli le gère parfaitement.</div>
+      </div>
+
+    <!-- CASIERS VIDES -->
+      <div id="g-depot" class="guide-card">
+        <div class="guide-card-title">🏪 Vente au dépôt</div>
+        <p class="guide-card-desc">Pour les ventes faites directement au comptoir, sans sortie de véhicule ni de chariot.</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Allez dans <b>🚗 Tournées</b> → cliquez <b>🏪 Vente au dépôt</b></div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text">Indiquez le client (facultatif) : sans nom, la vente s'enregistre sous <b>Vente comptoir</b></div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text">Ajoutez les boissons vendues et les quantités. <b>Les demi-casiers sont acceptés</b></div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text">Cliquez <b>✅ Valider la vente</b> — le stock est déduit immédiatement</div></div>
+          <div class="guide-step-item"><div class="guide-num">5</div><div class="guide-text">Pas de retour à enregistrer : la vente entre directement dans la recette et l'analyse</div></div>
+        </div>
+        <div class="guide-tip">💡 <b>Casiers vides :</b> les casiers vendus au dépôt apparaissent dans <b>📦 Casiers Vides</b>. Confirmez-les quand le client les rapporte.</div>
+      </div>
+
+      <div id="g-casiers" class="guide-card">
+        <div class="guide-card-title">📦 Gestion des Casiers Vides</div>
+        <div style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:12px;line-height:1.7;">
+          <b style="color:var(--gold);">⚡ Section optionnelle</b> — Vous pouvez ignorer cette section si vous ne souhaitez pas suivre les bouteilles vides. Mais voici pourquoi beaucoup de dépôts perdent de l'argent sans s'en rendre compte :
+          <br><br>
+          Imaginez que vous envoyez <b>10 casiers</b> avec Ali. Il vend tout et revient avec <b>10 casiers vides</b>. Parfait. Mais si il revient avec seulement <b>8 casiers vides</b>, où sont passées les <b>48 bouteilles</b> manquantes ? Cassées ? Perdues ? Gardées ? Sobraga va vous les réclamer. Cette section vous permet de détecter ça immédiatement et d'agir.
+        </div>
+        <p class="guide-card-desc">Si vous décidez de l'utiliser, voici comment ça marche :</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Allez dans <b>📦 Casiers Vides</b> après une tournée ou une vente au dépôt</div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text">Vous voyez la liste des tournées et ventes au dépôt en attente de retour de bouteilles vides</div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text">Cliquez <b>Confirmer</b> — entrez les casiers complets reçus et les bouteilles en vrac</div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text">L'appli calcule automatiquement les <b>pertes en bouteilles</b></div></div>
+          <div class="guide-step-item"><div class="guide-num">5</div><div class="guide-text">Quand vous envoyez des casiers vides à Sobraga, enregistrez le nombre en bas de page</div></div>
+        </div>
+        <div class="guide-tip">⚠️ <b>Choisissez la bonne taille</b> (12 ou 24 btl/casier) pour que le calcul des pertes soit correct.</div>
+      </div>
+
+      <!-- COMMANDES -->
+      <div id="g-commandes" class="guide-card">
+        <div class="guide-card-title">📋 Commandes Fournisseurs</div>
+        <p class="guide-card-desc">Gérez vos commandes auprès de Sobraga et d'autres fournisseurs. Vérifiez les livraisons à la réception.</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Allez dans <b>📋 Commandes</b> → <b>+ Fournisseur</b> pour ajouter vos fournisseurs (Sobraga est déjà là)</div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text">Cliquez <b>+ Commande</b>, choisissez le fournisseur et ajoutez les boissons commandées</div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text">Quand le camion arrive, cliquez <b>🚛 Livraison</b> sur la commande</div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text">Entrez les quantités réellement reçues — l'appli détecte les manques automatiquement</div></div>
+          <div class="guide-step-item"><div class="guide-num">5</div><div class="guide-text">Confirmez — le stock se met à jour avec les casiers reçus</div></div>
+        </div>
+        <div class="guide-tip">💡 Si la livraison est incomplète, la commande sera marquée <b>⚠️ Partielle</b> pour que vous vous en souveniez.</div>
+      </div>
+
+      <!-- ANALYSE -->
+      <div id="g-analyse" class="guide-card">
+        <div class="guide-card-title">📊 Analyser vos Performances</div>
+        <p class="guide-card-desc">Identifiez votre boisson star, votre meilleur jour et vos vendeurs les plus performants.</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Allez dans <b>📊 Analyse</b> — choisissez la période : 7 jours, 30 jours ou tout</div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text"><b>🏆 Boisson star</b> : la boisson qui rapporte le plus sur la période</div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text"><b>📅 Meilleur jour</b> : le jour de la semaine où vos tournées rapportent le plus</div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text"><b>👤 Vendeurs</b> : comparez les performances de chaque véhicule ou chariot</div></div>
+        </div>
+        <div class="guide-tip">💡 Plus vous enregistrez de tournées, plus l'analyse est précise et utile.</div>
+      </div>
+
+      <!-- SAUVEGARDE -->
+      <div id="g-sauvegarde" class="guide-card">
+        <div class="guide-card-title">💾 Sauvegarder vos données</div>
+        <p class="guide-card-desc">Exportez régulièrement vos données pour ne jamais les perdre.</p>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">1</div><div class="guide-text">Cliquez sur 💾 en haut à droite → une fenêtre s'ouvre</div></div>
+          <div class="guide-step-item"><div class="guide-num">2</div><div class="guide-text">Cliquez <b>📥 Télécharger le fichier</b> — le fichier est enregistré</div></div>
+          <div class="guide-step-item"><div class="guide-num">3</div><div class="guide-text">Conservez ce fichier .json en lieu sûr (Cloud, Clé USB...)</div></div>
+          <div class="guide-step-item"><div class="guide-num">4</div><div class="guide-text">Pour restaurer : cliquez 📥 → sélectionnez votre fichier de sauvegarde → <b>✅ Restaurer</b></div></div>
+        </div>
+        <div class="guide-tip">⚠️ <b>Sauvegardez au moins 1 fois par semaine</b> pour éviter de perdre vos données si le navigateur est vidé.</div>
+      </div>
+
+      <!-- ASTUCES -->
+      <div id="g-astuces" class="guide-card">
+        <div class="guide-card-title">💡 Astuces & Conseils</div>
+        <div class="guide-steps">
+          <div class="guide-step-item"><div class="guide-num">🍺</div><div class="guide-text"><b>Demi-casiers :</b> Entrez 0.5, 1.5, 2.5 dans les quantités — l'appli les accepte partout</div></div>
+          <div class="guide-step-item"><div class="guide-num">📊</div><div class="guide-text"><b>Rapport journalier :</b> Consultez <b>📄 Rapport</b> → Aujourd'hui pour voir tout ce qui s'est passé dans la journée</div></div>
+          <div class="guide-step-item"><div class="guide-num">🚗</div><div class="guide-text"><b>Tournée ou vente annulée :</b> Si vous supprimez une tournée en cours ou une vente au dépôt, le stock est automatiquement remis à jour</div></div>
+          <div class="guide-step-item"><div class="guide-num">🌙</div><div class="guide-text"><b>Mode sombre/clair :</b> Cliquez sur 🌙/☀️ en haut à droite pour changer l'apparence</div></div>
+          <div class="guide-step-item"><div class="guide-num">📦</div><div class="guide-text"><b>Pertes :</b> L'écran Casiers Vides vous montre en rouge les bouteilles manquantes — signalez-les à vos vendeurs</div></div>
+          <div class="guide-step-item"><div class="guide-num">⚙️</div><div class="guide-text"><b>Devise :</b> Allez dans <b>⚙️ Paramètres</b> pour changer la devise (FCFA, XAF, €...)</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PARAMÈTRES -->
+    <div id="sec-parametres" class="section">
+      <div class="page-title"><div class="dot"></div>Paramètres</div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">🏪 Informations du dépôt</div>
+        <div class="form-row"><label>Nom du dépôt</label>
+          <input type="text" id="param-depot" placeholder="Ex: Dépôt Central Boissons" oninput="saveParams()">
+        </div>
+        <div class="form-row"><label>Devise</label>
+          <select id="param-devise" onchange="saveParams()">
+            <option value="FCFA">FCFA</option>
+            <option value="€">€ (Euro)</option>
+            <option value="$">$ (Dollar)</option>
+            <option value="XAF">XAF</option>
+          </select>
+        </div>
+        <div class="form-row"><label>Téléphone</label>
+          <input type="text" id="param-tel" placeholder="+241..." oninput="saveParams()">
+        </div>
+        <div class="form-row"><label>Code secret de suppression</label>
+          <input type="password" id="param-delete-code" placeholder="Optionnel : pour protéger la suppression" oninput="saveParams()">
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">💾 Données</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" onclick="openExport()">⬇️ Exporter les données</button>
+          <button class="btn secondary" onclick="openImport()">📥 Restaurer les données</button>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">🔑 Licence</div>
+        <div id="param-licence-info" style="font-size:13px;font-family:var(--mono);color:var(--muted);margin-bottom:12px;"></div>
+        <button class="btn secondary sm" onclick="showMarketing()">📋 Voir les offres</button>
+        <button class="btn secondary sm" onclick="showGuide()">📖 Guide d'utilisation</button>
+      </div>
+
+      <div style="background:var(--surface);border:1.5px solid rgba(239,68,68,.3);border-radius:16px;padding:18px;">
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:14px;">🗑️ Zone dangereuse</div>
+        <button class="btn danger" onclick="supprimerTout()">Effacer toutes les données</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ ADMIN ══ -->
+<div id="screen-admin">
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;">
+    <button class="btn secondary sm" onclick="closeAdmin()">← Retour</button>
+    <div style="font-size:15px;font-weight:800;">⚙️ Administration</div>
+  </div>
+  <div class="admin-box">
+    <div style="background:var(--surface);border:1.5px solid rgba(245,197,24,.3);border-radius:16px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">🔑 Générer un code d'activation</div>
+      <div class="form-row"><label>Type de licence</label>
+        <select id="admin-type">
+          <option value="trial">Essai (7 jours)</option>
+          <option value="trial30">Essai (30 jours)</option>
+          <option value="monthly">Mensuel (30 jours)</option>
+          <option value="monthly2">2 mois (60 jours)</option>
+          <option value="monthly3">Trimestriel (90 jours)</option>
+          <option value="lifetime">À vie</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Code secret admin (requis)</label>
+        <input type="password" id="admin-secret" placeholder="Code secret">
+      </div>
+      <button class="btn-gold" style="width:100%;padding:11px;border-radius:10px;" onclick="genererCode()">🔑 Générer le code</button>
+      <div id="admin-result" style="margin-top:12px;display:none;">
+        <div style="background:var(--surface2);border:1.5px solid var(--gold);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Code d'activation :</div>
+          <div style="font-size:20px;font-weight:800;letter-spacing:4px;color:var(--gold);font-family:var(--mono);" id="admin-code-display"></div>
+          <button class="btn secondary sm" style="margin-top:8px;" onclick="copyAdminCode()">📋 Copier</button>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1.5px solid rgba(245,197,24,.3);border-radius:16px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">🏷️ Générer un code de réduction</div>
+      <div class="form-row"><label>Offre concernée</label>
+        <select id="admin-promo-plan">
+          <option value="monthly">Mensuel</option>
+          <option value="monthly2">2 mois</option>
+          <option value="monthly3">Trimestriel</option>
+          <option value="lifetime">À vie</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Réduction (en FCFA)</label>
+        <input type="number" id="admin-promo-montant" placeholder="Ex: 1000">
+      </div>
+      <div class="form-row"><label>Code secret admin (requis)</label>
+        <input type="password" id="admin-promo-secret" placeholder="Code secret">
+      </div>
+      <button class="btn-gold" style="width:100%;padding:11px;border-radius:10px;" onclick="genererCodeReduction()">🏷️ Générer le code promo</button>
+      <div id="admin-promo-result" style="margin-top:12px;display:none;">
+        <div style="background:var(--surface2);border:1.5px solid var(--gold);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Code promo :</div>
+          <div style="font-size:20px;font-weight:800;letter-spacing:2px;color:var(--gold);font-family:var(--mono);" id="admin-promo-result-display"></div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;">⚠️ Chaque code ne peut être utilisé qu'une seule fois par appareil (comme les codes d'activation).</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">📊 Licences actives</div>
+      <div id="admin-licences" style="font-size:12px;color:var(--muted);font-family:var(--mono);">Chargement...</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--warn);margin-bottom:14px;">🔄 Contrôle des essais</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Si un client a déjà utilisé son essai gratuit, vous pouvez le réinitialiser ici.</p>
+      <button class="btn secondary" style="width:100%;" onclick="resetTrialAdmin()">Réinitialiser l'essai gratuit</button>
+    </div>
+    <div style="background:var(--surface);border:1.5px solid rgba(239,68,68,.3);border-radius:16px;padding:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:14px;">🗑️ Supprimer toutes les données</div>
+      <button class="btn danger" style="width:100%;" onclick="supprimerTout()">Effacer toutes les données</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- Modal Auth Admin -->
+<div class="overlay" id="modal-admin-auth" onclick="closeOnOverlay(event,'modal-admin-auth')">
+  <div class="modal sm" style="text-align:center;">
+    <div style="font-size:32px;margin-bottom:8px;">🔐</div>
+    <div class="modal-title" style="text-align:center;">Accès Administrateur</div>
+    <div class="form-row">
+      <label>Code secret</label>
+      <input type="password" id="admin-auth-input" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')confirmerAdminAuth()">
+    </div>
+    <div id="admin-auth-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none;">❌ Code incorrect</div>
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn secondary" onclick="closeModal('modal-admin-auth')">Annuler</button>
+      <button class="btn" onclick="confirmerAdminAuth()">✅ Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Produit -->
+<div class="overlay" id="modal-produit" onclick="closeOnOverlay(event,'modal-produit')">
+  <div class="modal sm">
+    <div class="modal-title" id="modal-produit-title">Ajouter une boisson</div>
+    <div class="form-row"><label>Nom de la boisson</label><input type="text" id="p-nom" placeholder="Ex: Régab, Coca-Cola, Vino..."></div>
+    <div class="form-row"><label>Type de conditionnement</label>
+      <select id="p-type">
+        <option value="casier24">📦 Casier 24 bouteilles</option>
+        <option value="casier12">📦 Casier 12 bouteilles</option>
+        <option value="plastique">🧴 Plastique / Vino (unité)</option>
+      </select>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Stock actuel</label><input type="number" id="p-stock" min="0" step="0.5" placeholder="0" oninput="calcProdPreview()"></div>
+      <div class="form-row"><label>Seuil alerte</label><input type="number" id="p-seuil" min="0" placeholder="5"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Prix achat (casier/u)</label><input type="number" id="p-achat" min="0" step="0.01" placeholder="0" oninput="calcProdPreview()"></div>
+      <div class="form-row"><label>Prix vente (casier/u)</label><input type="number" id="p-vente" min="0" step="0.01" placeholder="0" oninput="calcProdPreview()"></div>
+    </div>
+    <div id="prod-preview" class="preview-box neutral"><div style="color:var(--muted);font-size:12px;">Remplissez les champs...</div></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-produit')">Annuler</button>
+      <button class="btn" onclick="saveProduit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tournée -->
+<div class="overlay" id="modal-tournee" onclick="closeOnOverlay(event,'modal-tournee')">
+  <div class="modal">
+    <div class="modal-title">🚗 Nouvelle Tournée</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Type</label>
+        <select id="t-type">
+          <option value="voiture">🚗 Véhicule</option>
+          <option value="chariot">🛒 Chariot</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Nom du vendeur</label><input type="text" id="t-vendeur" placeholder="Ex: Ali..."></div>
+    </div>
+    <hr class="modal-sep">
+    <span class="sec-lbl">📦 Chargement (casiers envoyés)</span>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">💡 Vous pouvez entrer des demi-casiers : 1.5, 2.5, etc.</div>
+    <div id="t-chargement"></div>
+    <button class="btn secondary sm" onclick="addLigneTournee()" style="margin-bottom:12px;">+ Ajouter une boisson</button>
+    <div id="t-preview" class="preview-box neutral"><div style="color:var(--muted);font-size:12px;">Ajoutez des boissons...</div></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-tournee')">Annuler</button>
+      <button class="btn" onclick="saveTournee()">🚀 Démarrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Vente au dépôt -->
+<div class="overlay" id="modal-depot" onclick="closeOnOverlay(event,'modal-depot')">
+  <div class="modal">
+    <div class="modal-title">🏪 Vente au dépôt</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Client / acheteur</label><input type="text" id="d-client" placeholder="Ex: Client de passage (optionnel)"></div>
+    </div>
+    <hr class="modal-sep">
+    <span class="sec-lbl">🧾 Boissons vendues</span>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">💡 Vente immédiate : le stock est déduit tout de suite. Demi-casiers acceptés.</div>
+    <div id="d-lignes"></div>
+    <button class="btn secondary sm" onclick="addLigneDepot()" style="margin-bottom:12px;">+ Ajouter une boisson</button>
+    <div id="d-preview" class="preview-box neutral"><div style="color:var(--muted);font-size:12px;">Ajoutez des boissons...</div></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-depot')">Annuler</button>
+      <button class="btn" onclick="saveDepot()">✅ Valider la vente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Retour -->
+<div class="overlay" id="modal-retour" onclick="closeOnOverlay(event,'modal-retour')">
+  <div class="modal">
+    <div class="modal-title">📥 Retour de tournée</div>
+    <div class="info-box" id="retour-info"></div>
+    <span class="sec-lbl">📦 Invendus par boisson</span>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">💡 Entrez 0 si tout a été vendu. Les demi-casiers sont acceptés.</div>
+    <div id="retour-fields"></div>
+    <div id="retour-preview" class="preview-box neutral"><div style="color:var(--muted);font-size:12px;">Remplissez les invendus...</div></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-retour')">Annuler</button>
+      <button class="btn success" onclick="confirmerRetour()">✅ Confirmer retour</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Casiers Vides -->
+<div class="overlay" id="modal-cv" onclick="closeOnOverlay(event,'modal-cv')">
+  <div class="modal sm">
+    <div class="modal-title">📦 Retour casiers vides</div>
+    <div class="info-box" id="cv-info"></div>
+    <div class="form-row"><label>Casiers vides complets reçus</label><input type="number" id="cv-complets" min="0" placeholder="0" oninput="calcCvPreview()"></div>
+    <div class="form-row"><label>Bouteilles vides en vrac (hors casier)</label><input type="number" id="cv-vrac" min="0" placeholder="0" oninput="calcCvPreview()"></div>
+    <div class="form-row"><label>Taille des casiers (pour calcul)</label>
+      <select id="cv-taille" onchange="calcCvPreview()">
+        <option value="24">24 bouteilles/casier</option>
+        <option value="12">12 bouteilles/casier</option>
+      </select>
+    </div>
+    <div id="cv-preview" class="preview-box neutral"><div style="color:var(--muted);font-size:12px;">Remplissez les champs...</div></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-cv')">Annuler</button>
+      <button class="btn success" onclick="confirmerCV()">✅ Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Client -->
+<div class="overlay" id="modal-client" onclick="closeOnOverlay(event,'modal-client')">
+  <div class="modal sm">
+    <div class="modal-title" id="client-modal-title">👥 Nouveau client</div>
+    <div class="form-row"><label>Nom du client / établissement</label><input type="text" id="cl-nom" placeholder="Ex: Bar La Grâce"></div>
+    <div class="form-grid"><div class="form-row"><label>Téléphone</label><input type="text" id="cl-tel" placeholder="06... / 07..."></div><div class="form-row"><label>Adresse</label><input type="text" id="cl-adresse" placeholder="Quartier, ville"></div></div>
+    <div class="form-row"><label>Notes</label><input type="text" id="cl-notes" placeholder="Informations utiles"></div>
+    <div class="modal-actions"><button class="btn secondary" onclick="closeModal('modal-client')">Annuler</button><button class="btn" onclick="saveClient()">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- Modal Mouvement client -->
+<div class="overlay" id="modal-client-mouvement" onclick="closeOnOverlay(event,'modal-client-mouvement')">
+  <div class="modal sm">
+    <div class="modal-title">➕ Nouvelle opération client</div>
+    <div class="info-box" id="client-mv-info"></div>
+    <div class="form-row"><label>Type d'opération</label><select id="mv-type" onchange="updateClientMovementForm()">
+      <option value="vente_credit">💳 Vente à crédit (augmente la dette)</option><option value="paiement">💵 Paiement reçu (réduit la dette)</option>
+      <option value="remise_casiers">📦 Casiers remis au client</option><option value="retour_casiers">📥 Casiers retournés</option>
+      <option value="remise_bouteilles">🍾 Bouteilles remises</option><option value="retour_bouteilles">♻️ Bouteilles retournées</option><option value="casse_bouteilles">⚠️ Bouteilles cassées / perte déclarée</option>
+    </select></div>
+    <div id="client-mv-fields"></div>
+    <div class="form-row"><label>Commentaire (optionnel)</label><input type="text" id="mv-note" placeholder="Ex: Livraison du matin"></div>
+    <div class="modal-actions"><button class="btn secondary" onclick="closeModal('modal-client-mouvement')">Annuler</button><button class="btn" onclick="saveClientMovement()">✅ Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- Modal Fournisseur -->
+<div class="overlay" id="modal-fournisseur" onclick="closeOnOverlay(event,'modal-fournisseur')">
+  <div class="modal sm">
+    <div class="modal-title" id="modal-fourn-title">Ajouter un fournisseur</div>
+    <div class="form-row"><label>Nom du fournisseur</label><input type="text" id="f-nom" placeholder="Ex: Sobraga, Castel..."></div>
+    <div class="form-row"><label>Téléphone (optionnel)</label><input type="text" id="f-tel" placeholder="+241..."></div>
+    <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Ex: Livraison le lundi..."></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-fournisseur')">Annuler</button>
+      <button class="btn" onclick="saveFournisseur()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Commande -->
+<div class="overlay" id="modal-commande" onclick="closeOnOverlay(event,'modal-commande')">
+  <div class="modal">
+    <div class="modal-title">📋 Nouvelle commande</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Fournisseur</label>
+        <select id="cmd-fourn">
+          <option value="sobraga">Sobraga</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Référence</label><input type="text" id="cmd-ref" placeholder="CMD-001"></div>
+    </div>
+    <hr class="modal-sep">
+    <span class="sec-lbl">📦 Boissons commandées</span>
+    <div id="cmd-lignes"></div>
+    <button class="btn secondary sm" onclick="addLigneCommande()" style="margin-bottom:12px;">+ Ajouter boisson</button>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-commande')">Annuler</button>
+      <button class="btn" onclick="saveCommande()">📤 Commander</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Livraison -->
+<div class="overlay" id="modal-livraison" onclick="closeOnOverlay(event,'modal-livraison')">
+  <div class="modal">
+    <div class="modal-title">🚛 Vérification livraison</div>
+    <div class="info-box" id="livraison-info"></div>
+    <div id="livraison-fields"></div>
+    <div id="livraison-preview" class="preview-box neutral"><div style="color:var(--muted);font-size:12px;">Remplissez...</div></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-livraison')">Annuler</button>
+      <button class="btn success" onclick="confirmerLivraison()">✅ Confirmer livraison</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Export -->
+<div class="overlay" id="modal-export" onclick="closeOnOverlay(event,'modal-export')">
+  <div class="modal sm">
+    <div class="modal-title">💾 Sauvegarder les données</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Téléchargez un fichier de sauvegarde contenant toutes vos données. Conservez-le précieusement pour une restauration future.</p>
+    <div style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:20px;text-align:center;margin-bottom:15px;">
+        <div style="font-size:32px;margin-bottom:10px;">📄</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--mono);" id="export-filename">boissons_backup.json</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-export')">Fermer</button>
+      <button class="btn" onclick="downloadBackup()">📥 Télécharger le fichier</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Import -->
+<div class="overlay" id="modal-import" onclick="closeOnOverlay(event,'modal-import')">
+  <div class="modal sm">
+    <div class="modal-title">📥 Restaurer les données</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Sélectionnez votre fichier de sauvegarde (.json) pour restaurer vos données.</p>
+    <div style="background:var(--surface2);border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;margin-bottom:15px;position:relative;">
+        <input type="file" id="import-file" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="handleFileSelect(this)">
+        <div id="import-placeholder">
+            <div style="font-size:32px;margin-bottom:10px;">📁</div>
+            <div style="font-size:12px;color:var(--muted);">Cliquez pour choisir un fichier</div>
+        </div>
+        <div id="import-info" style="display:none;">
+            <div style="font-size:32px;margin-bottom:10px;">✅</div>
+            <div style="font-size:12px;color:var(--gold);font-weight:700;" id="import-filename-display">fichier.json</div>
+        </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-import')">Annuler</button>
+      <button class="btn success" id="btn-restaurer" onclick="confirmerImport()" disabled style="opacity:0.5;cursor:not-allowed;">✅ Restaurer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  LICENCE SYSTEM
+// ══════════════════════════════════════════
+const ADMIN_SECRET = 'BM2024ADMIN'; // Code secret admin — à changer
+const LICENCE_SALT = 'BOISSONS_MGR_2024';
+
+function genHash(str){
+  let h=0;
+  for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}
+  return Math.abs(h).toString(36).toUpperCase();
+}
+
+function genererCode(){
+  const secret = document.getElementById('admin-secret').value;
+  if(secret !== ADMIN_SECRET){ alert('Code secret incorrect'); return; }
+  const type = document.getElementById('admin-type').value;
+  
+  // Prefixes et suffixes pour des codes parlants
+  const prefixes = {trial:'TEST',trial30:'TS30',monthly:'MENS',monthly2:'TM60',monthly3:'TM90',lifetime:'LIFE'};
+  const suffixes = {trial:'7DAY',trial30:'30DY',monthly:'30DY',monthly2:'60DY',monthly3:'90DY',lifetime:'TIME'};
+  const jours = {trial:7,trial30:30,monthly:30,monthly2:60,monthly3:90,lifetime:99999};
+  const types = {trial:'trial',trial30:'trial',monthly:'monthly',monthly2:'monthly',monthly3:'monthly',lifetime:'lifetime'};
+  
+  const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+  const code = `${prefixes[type]}-${suffixes[type]}-${rand}`;
+  
+  // Enregistrer dans les codes personnalisés (bm_custom_codes) pour que activerLicence() le reconnaisse
+  const custom = JSON.parse(localStorage.getItem('bm_custom_codes')||'{}');
+  custom[code.replace(/-/g,'')] = {type:types[type], jours:jours[type], label: prefixes[type]};
+  localStorage.setItem('bm_custom_codes', JSON.stringify(custom));
+  
+  document.getElementById('admin-code-display').textContent = code;
+  document.getElementById('admin-result').style.display = 'block';
+  
+  // Historique admin
+  const logs = JSON.parse(localStorage.getItem('bm_licence_logs')||'[]');
+  logs.push({code, type, date: new Date().toLocaleString('fr-FR')});
+  localStorage.setItem('bm_licence_logs', JSON.stringify(logs));
+  renderAdminLicences();
+}
+
+function copyAdminCode(){
+  const code = document.getElementById('admin-code-display').textContent;
+  navigator.clipboard.writeText(code).catch(()=>{});
+  const btn = document.querySelector('#admin-result .btn');
+  if(btn){btn.textContent='✅ Copié';setTimeout(()=>btn.textContent='📋 Copier',2000);}
+}
+
+function renderAdminLicences(){
+  const logs=JSON.parse(localStorage.getItem('bm_licence_logs')||'[]');
+  const el=document.getElementById('admin-licences');
+  if(!el) return;
+  if(!logs.length){el.textContent='Aucune licence générée';return;}
+  el.innerHTML=logs.slice().reverse().map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+    <span style="color:var(--gold)">${l.code}</span> — ${l.type} — ${l.date}
+  </div>`).join('');
+}
+
+function formatActCode(input){
+  let v=input.value.replace(/[^A-Z0-9a-z]/gi,'').toUpperCase();
+  if(v.length>4) v=v.slice(0,4)+'-'+v.slice(4);
+  if(v.length>9) v=v.slice(0,9)+'-'+v.slice(9);
+  if(v.length>14) v=v.slice(0,14);
+  input.value=v;
+}
+
+// Codes prédéfinis — modifiables par le développeur uniquement
+const CODES_VALIDES = {
+  // ESSAI
+  'ESSAI2024':  { type:'trial',   jours:7,     label:'⏳ Essai 7 jours' },
+  'ESSAI30':    { type:'trial',   jours:30,    label:'⏳ Essai 30 jours' },
+  // MENSUEL
+  'MOIS2024':   { type:'monthly', jours:30,    label:'📅 Mensuel' },
+  'DEUXMOIS2024': { type:'monthly', jours:60,  label:'📅 2 mois' },
+  'TRIM2024':   { type:'monthly', jours:90,    label:'📅 Trimestriel' },
+  // À VIE
+  'AVIE2024':   { type:'lifetime',jours:99999, label:'♾️ À vie' },
+  // CODES CLIENTS
+  'CLIENTA':    { type:'monthly', jours:30,    label:'📅 Mensuel client' },
+  'CLIENTB':    { type:'lifetime',jours:99999, label:'♾️ À vie client' },
+};
+
+function resetLicence(){
+  if(!confirm('⚠️ Réinitialiser les données de licence ? Vous devrez rentrer votre code à nouveau.')) return;
+  localStorage.removeItem('bm_licence');
+  // On ne supprime pas bm_used_codes ici pour éviter la réutilisation simple
+  document.getElementById('act-code').value='';
+  document.getElementById('act-error').style.display='none';
+  alert('✅ Réinitialisé. Entrez votre code d\'activation.');
+}
+
+function activerLicence(){
+  const inputEl = document.getElementById('act-code');
+  const raw = inputEl.value.trim();
+  const code = raw.toUpperCase().replace(/\s+/g,'').replace(/-/g,'');
+  const errEl = document.getElementById('act-error');
+  
+  // Vérifier si le code a déjà été utilisé sur cet appareil
+  const usedCodes = JSON.parse(localStorage.getItem('bm_used_codes') || '[]');
+  if (usedCodes.includes(code)) {
+    errEl.textContent = '❌ Ce code a déjà été utilisé sur cet appareil.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Chercher dans codes prédéfinis + codes custom générés
+  let info = CODES_VALIDES[code];
+  if(!info){
+    const custom = JSON.parse(localStorage.getItem('bm_custom_codes')||'{}');
+    info = custom[code];
+  }
+  
+  if(!info){ 
+    errEl.textContent='❌ Code invalide : '+code+'. Contactez le développeur.'; 
+    errEl.style.display='block'; 
+    return; 
+  }
+  
+  const expiry = info.jours===99999 ? null : Date.now()+info.jours*86400000;
+  
+  // Masquer le code pour qu'il ne soit pas stocké en clair de manière visible
+  const maskedCode = code.slice(0, 4) + "****" + code.slice(-2);
+  
+  localStorage.setItem('bm_licence', JSON.stringify({
+    code: maskedCode,
+    type: info.type,
+    jours: info.jours,
+    expiry,
+    activatedAt: Date.now()
+  }));
+  
+  // Marquer comme utilisé
+  usedCodes.push(code);
+  localStorage.setItem('bm_used_codes', JSON.stringify(usedCodes));
+  
+  // Effacer le champ
+  inputEl.value = '';
+  errEl.style.display='none';
+  
+  alert('✅ Licence activée avec succès !');
+  lancerApp();
+}
+
+function activerEssaiGratuit() {
+  const dejaUtilise = localStorage.getItem('bm_trial_used');
+  if (dejaUtilise === 'true') {
+    alert('❌ Vous avez déjà épuisé votre essai gratuit de 7 jours sur cet appareil.');
+    showActivation();
+    return;
+  }
+
+  if (!confirm('Voulez-vous activer votre essai gratuit de 7 jours ?')) return;
+
+  const jours = 7;
+  const expiry = Date.now() + jours * 86400000;
+  
+  localStorage.setItem('bm_licence', JSON.stringify({
+    code: 'ESSAI_GRATUIT',
+    type: 'trial',
+    jours: jours,
+    expiry,
+    activatedAt: Date.now()
+  }));
+  
+  localStorage.setItem('bm_trial_used', 'true');
+  alert('✅ Essai gratuit de 7 jours activé ! Profitez bien de BoissonsManager.');
+  lancerApp();
+}
+
+function checkLicence(){
+  const lic=JSON.parse(localStorage.getItem('bm_licence')||'null');
+  if(!lic) return null;
+  if(lic.expiry&&Date.now()>lic.expiry) return null; // expirée
+  return lic;
+}
+
+function updateLicBadge(){
+  const lic=checkLicence(); if(!lic) return;
+  const badge=document.getElementById('lic-badge');
+  if(lic.type==='lifetime'){badge.textContent='♾️ À vie';badge.className='lic-badge lifetime';}
+  else if(lic.type==='monthly'||lic.type==='monthly3'){
+    const jours=lic.expiry?Math.ceil((lic.expiry-Date.now())/86400000):0;
+    badge.textContent=`📅 ${jours}j restants`;badge.className='lic-badge monthly';
+  } else {
+    const jours=lic.expiry?Math.ceil((lic.expiry-Date.now())/86400000):0;
+    badge.textContent=`⏳ Essai ${jours}j`;badge.className='lic-badge trial';
+  }
+}
+
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+let produits  = JSON.parse(localStorage.getItem('bm_produits')  || '[]');
+let tournees  = JSON.parse(localStorage.getItem('bm_tournees')  || '[]');
+let casVides  = JSON.parse(localStorage.getItem('bm_casvides')  || '[]');
+let sobragaLog= JSON.parse(localStorage.getItem('bm_sobraga')   || '[]');
+let commandes = JSON.parse(localStorage.getItem('bm_commandes') || '[]');
+let fournisseurs=JSON.parse(localStorage.getItem('bm_fournisseurs')||'[{"id":"sobraga","nom":"Sobraga","tel":"","notes":"Fournisseur principal"}]');
+let settings  = JSON.parse(localStorage.getItem('bm_settings')  || '{"devise":"FCFA","depot":"Mon Dépôt"}');
+let clients   = JSON.parse(localStorage.getItem('bm_clients') || '[]');
+let mouvementsClients = JSON.parse(localStorage.getItem('bm_client_mouvements') || '[]');
+
+function save(){
+  localStorage.setItem('bm_produits',   JSON.stringify(produits));
+  localStorage.setItem('bm_tournees',   JSON.stringify(tournees));
+  localStorage.setItem('bm_casvides',   JSON.stringify(casVides));
+  localStorage.setItem('bm_sobraga',    JSON.stringify(sobragaLog));
+  localStorage.setItem('bm_commandes',  JSON.stringify(commandes));
+  localStorage.setItem('bm_fournisseurs',JSON.stringify(fournisseurs));
+  localStorage.setItem('bm_settings',   JSON.stringify(settings));
+  localStorage.setItem('bm_clients',    JSON.stringify(clients));
+  localStorage.setItem('bm_client_mouvements', JSON.stringify(mouvementsClients));
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function nowStr(){ return new Date().toLocaleString('fr-FR'); }
+function fmt(n){ return parseFloat(n||0).toLocaleString('fr-FR',{maximumFractionDigits:0}); }
+function fmtDec(n){ return parseFloat(n||0).toLocaleString('fr-FR',{maximumFractionDigits:1}); }
+const D=()=>settings.devise||'FCFA';
+function nbBtl(type){ return type==='casier24'?24:type==='casier12'?12:1; }
+function typeLabel(type){ return type==='casier24'?'Casier 24btl':type==='casier12'?'Casier 12btl':'Plastique'; }
+
+// ══════════════════════════════════════════
+//  NAVIGATION ÉCRANS
+// ══════════════════════════════════════════
+function showMarketing(){
+  // Si l'utilisateur a une licence active, ajouter un bouton retour
+  setScreen('screen-marketing');
+  const lic=checkLicence();
+  if(lic){
+    // Ajouter bouton retour dans le header marketing
+    const hdr=document.querySelector('.mkt-header');
+    if(hdr&&!document.getElementById('mkt-back-btn')){
+      const btn=document.createElement('button');
+      btn.id='mkt-back-btn';
+      btn.className='btn-outline';
+      btn.style.cssText='padding:8px 16px;font-size:12px;';
+      btn.textContent='← Retour à l\'appli';
+      btn.onclick=lancerApp;
+      hdr.insertBefore(btn,hdr.firstChild);
+    } else if(document.getElementById('mkt-back-btn')){
+      document.getElementById('mkt-back-btn').style.display='block';
+    }
+  }
+}
+function showGuide(){ setScreen('screen-guide'); }
+function showActivation(){ setScreen('screen-activation'); }
+function setScreen(id){
+  ['screen-marketing','screen-guide','screen-activation','screen-app','screen-admin'].forEach(s=>{
+    const el=document.getElementById(s);
+    el.style.display='none';
+  });
+  const target=document.getElementById(id);
+  target.style.display=id==='screen-activation'?'flex':id==='screen-admin'?'block':'block';
+}
+
+function lancerApp(){
+  setScreen('screen-app');
+  updateLicBadge();
+  renderStock();
+  updateStats();
+}
+
+function openAdmin(){
+  // Sur mobile, prompt() ne marche pas bien — on utilise un modal
+  document.getElementById('modal-admin-auth').classList.add('open');
+  document.getElementById('admin-auth-input').value='';
+  document.getElementById('admin-auth-error').style.display='none';
+  setTimeout(()=>document.getElementById('admin-auth-input').focus(),200);
+}
+function confirmerAdminAuth(){
+  const val=document.getElementById('admin-auth-input').value;
+  if(val!==ADMIN_SECRET){
+    document.getElementById('admin-auth-error').style.display='block';
+    return;
+  }
+  closeModal('modal-admin-auth');
+  setScreen('screen-admin');
+  renderAdminLicences();
+}
+function closeAdmin(){
+  setScreen('screen-app');
+}
+
+// ══════════════════════════════════════════
+//  APP NAV & SECTIONS
+// ══════════════════════════════════════════
+let filters={stock:'tous',tournees:'all',analyse:'week',rapport:'today'};
+let currentSection='stock';
+
+function showSection(s,btn){
+  document.querySelectorAll('#screen-app .section').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const target=document.getElementById('sec-'+s);
+  if(target) target.classList.add('active');
+  if(btn) btn.classList.add('active');
+  currentSection=s;
+  if(s==='stock') renderStock();
+  if(s==='tournees') renderTournees();
+  if(s==='clients') renderClients();
+  if(s==='casiers-vides') renderCasiersVides();
+  if(s==='commandes') renderCommandes();
+  if(s==='analyse') renderAnalyse();
+  if(s==='rapport') renderRapport();
+  if(s==='parametres') loadParams();
+}
+
+function setFilter(section,val,btn){
+  filters[section]=val;
+  const tabs=btn?.parentElement?.querySelectorAll('.ftab');
+  if(tabs) tabs.forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(section==='stock') renderStock();
+  if(section==='tournees') renderTournees();
+  if(section==='analyse') renderAnalyse();
+  if(section==='rapport') renderRapport();
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function closeOnOverlay(e,id){ if(e.target===e.currentTarget) closeModal(id); }
+
+// ══════════════════════════════════════════
+//  RACCOURCI SWIPE : Stock ⇄ Tournées
+// ══════════════════════════════════════════
+(function(){
+  function initSwipeShortcut(){
+    const mainEl=document.querySelector('#screen-app > main');
+    if(!mainEl) return;
+    let startX=0,startY=0,tracking=false;
+
+    function goToSection(target){
+      const btn=document.querySelector(`.nav-btn[onclick*="showSection('${target}'"]`);
+      showSection(target,btn);
+    }
+    function onStart(x,y){ startX=x; startY=y; tracking=true; }
+    function onEnd(x,y){
+      if(!tracking) return;
+      tracking=false;
+      const dx=x-startX, dy=y-startY;
+      if(Math.abs(dx)<40||Math.abs(dx)<Math.abs(dy)*1.1) return;
+      if(currentSection==='stock'&&dx<0) goToSection('tournees');
+      else if(currentSection==='tournees'&&dx>0) goToSection('stock');
+    }
+    function onCancel(){ tracking=false; }
+
+    // Tactile (mobile)
+    mainEl.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1) return;
+      onStart(e.touches[0].clientX,e.touches[0].clientY);
+    },{passive:true});
+    mainEl.addEventListener('touchend',e=>{
+      onEnd(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
+    },{passive:true});
+    mainEl.addEventListener('touchcancel',onCancel,{passive:true});
+
+    // Souris (desktop, pour tests)
+    mainEl.addEventListener('mousedown',e=>{ onStart(e.clientX,e.clientY); });
+    mainEl.addEventListener('mouseup',e=>{ onEnd(e.clientX,e.clientY); });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initSwipeShortcut);
+  else initSwipeShortcut();
+})();
+
+// ══════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════
+function updateStats(){
+  const totalCasiers=produits.filter(p=>p.type!=='plastique').reduce((s,p)=>s+(p.stock||0),0);
+  document.getElementById('stat-casiers').textContent=fmtDec(totalCasiers);
+  const today=new Date();today.setHours(0,0,0,0);
+  const tourneesActives=tournees.filter(t=>t.statut==='en_cours').length;
+  document.getElementById('stat-tournees').textContent=tourneesActives;
+  const caAuj=tournees.filter(t=>t.ts>=today.getTime()&&t.statut==='termine').reduce((s,t)=>s+(t.totalVente||0),0);
+  document.getElementById('stat-ca').textContent=fmt(caAuj)+' '+D();
+  const totalPertes=casVides.reduce((s,c)=>s+(c.pertes||0),0);
+  document.getElementById('stat-pertes').textContent=totalPertes+' btl';
+}
+
+// ══════════════════════════════════════════
+//  STOCK
+// ══════════════════════════════════════════
+let editProduitId=null;
+function renderStock(){
+  let list=produits;
+  if(filters.stock==='casier') list=list.filter(p=>p.type!=='plastique');
+  if(filters.stock==='plastique') list=list.filter(p=>p.type==='plastique');
+  const grid=document.getElementById('prod-grid');
+  if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="e-icon">🍺</div><p>Aucune boisson. Cliquez sur + Ajouter</p></div>';return;}
+  grid.innerHTML=list.map(p=>{
+    const isOut=p.stock<=0,isLow=!isOut&&p.stock<=(p.seuil||5);
+    const sc=isOut?'var(--danger)':isLow?'var(--warn)':'var(--gold)';
+    return`<div class="prod-card ${isOut?'out':isLow?'low':''}">
+      <div class="prod-icon">${p.type==='plastique'?'🧴':'🍺'}</div>
+      <div class="prod-nom">${p.nom}</div>
+      <div class="prod-type">${typeLabel(p.type)}</div>
+      <div class="prod-stock" style="color:${sc}">${fmtDec(p.stock||0)}</div>
+      <div class="prod-sub">${p.type!=='plastique'?fmtDec((p.stock||0)*nbBtl(p.type))+' btl':'unités'} | ${fmt(p.vente||0)} ${D()}</div>
+      <div class="prod-actions">
+        <button class="icon-btn" onclick="openModalProduit('${p.id}')">✏️</button>
+        <button class="icon-btn" onclick="reappro('${p.id}')">📥</button>
+        <button class="icon-btn del" onclick="deleteProduit('${p.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openModalProduit(id){
+  editProduitId=id||null;
+  document.getElementById('modal-produit-title').textContent=id?'Modifier boisson':'Ajouter une boisson';
+  ['p-nom','p-stock','p-seuil','p-achat','p-vente'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  if(id){const p=produits.find(x=>x.id===id);
+    document.getElementById('p-nom').value=p.nom;document.getElementById('p-type').value=p.type;
+    document.getElementById('p-stock').value=p.stock;document.getElementById('p-seuil').value=p.seuil||5;
+    document.getElementById('p-achat').value=p.achat||0;document.getElementById('p-vente').value=p.vente||0;}
+  calcProdPreview();
+  document.getElementById('modal-produit').classList.add('open');
+}
+
+function calcProdPreview(){
+  const stock=parseFloat(document.getElementById('p-stock')?.value)||0;
+  const achat=parseFloat(document.getElementById('p-achat')?.value)||0;
+  const vente=parseFloat(document.getElementById('p-vente')?.value)||0;
+  const box=document.getElementById('prod-preview');
+  if(!achat||!vente){box.className='preview-box neutral';box.innerHTML='<div style="color:var(--muted)">Remplissez prix achat et vente...</div>';return;}
+  const margeUnit=vente-achat,ben=margeUnit*stock,marge=achat>0?(margeUnit/achat*100):0;
+  box.className='preview-box'+(ben>=0?' good':' bad');
+  box.innerHTML=`<div class="preview-row"><span class="lbl">Marge par casier</span><span class="val" style="color:${margeUnit>=0?'var(--success)':'var(--danger)'}">${fmt(margeUnit)} ${D()}</span></div>
+    <div class="preview-row"><span class="lbl">CA potentiel</span><span class="val">${fmt(vente*stock)} ${D()}</span></div>
+    <div class="preview-row"><span class="lbl">Bénéfice potentiel</span><span class="val" style="color:${ben>=0?'var(--success)':'var(--danger)'}">${ben>=0?'+':''}${fmt(ben)} ${D()}</span></div>
+    <div class="preview-row"><span class="lbl">Marge</span><span class="val">${marge.toFixed(1)}%</span></div>`;
+}
+
+function saveProduit(){
+  const nom=document.getElementById('p-nom').value.trim();
+  if(!nom){alert('Nom requis');return;}
+  let p=editProduitId?produits.find(x=>x.id===editProduitId):{id:uid()};
+  p.nom=nom;p.type=document.getElementById('p-type').value;
+  p.stock=parseFloat(document.getElementById('p-stock').value)||0;
+  p.seuil=parseFloat(document.getElementById('p-seuil').value)||5;
+  p.achat=parseFloat(document.getElementById('p-achat').value)||0;
+  p.vente=parseFloat(document.getElementById('p-vente').value)||0;
+  if(!editProduitId) produits.push(p);
+  save();closeModal('modal-produit');renderStock();updateStats();
+}
+
+function deleteProduit(id){
+  if(!confirm('Supprimer cette boisson ?')) return;
+  produits=produits.filter(x=>x.id!==id);
+  save();renderStock();updateStats();
+}
+
+function reappro(id){
+  const nb=prompt('Nombre de casiers/unités à ajouter au stock (demi-casiers acceptés ex: 2.5) :');
+  if(!nb||isNaN(nb)) return;
+  const p=produits.find(x=>x.id===id);
+  p.stock=(p.stock||0)+parseFloat(nb);
+  save();renderStock();updateStats();
+}
+
+// ══════════════════════════════════════════
+//  TOURNÉES
+// ══════════════════════════════════════════
+let tourneeRows=[], currentRetourId=null;
+
+function openModalTournee(){
+  tourneeRows=[];
+  document.getElementById('t-vendeur').value='';
+  document.getElementById('t-type').value='voiture';
+  renderTourneeRows();
+  document.getElementById('modal-tournee').classList.add('open');
+}
+
+function addLigneTournee(){
+  if(!produits.length){alert('Ajoutez d\'abord des boissons au stock');return;}
+  tourneeRows.push({produitId:produits[0].id,qte:1});
+  renderTourneeRows();
+}
+
+function renderTourneeRows(){
+  const div=document.getElementById('t-chargement');
+  if(!tourneeRows.length){div.innerHTML='';updateTourneePreview();return;}
+  div.innerHTML=tourneeRows.map((r,i)=>`
+    <div style="display:flex;gap:7px;align-items:center;margin-bottom:8px;">
+      <select onchange="tourneeRows[${i}].produitId=this.value;updateTourneePreview()"
+        style="flex:2;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;">
+        ${produits.map(p=>`<option value="${p.id}" ${r.produitId===p.id?'selected':''}>${p.nom} (${fmtDec(p.stock)})</option>`).join('')}
+      </select>
+      <input type="number" min="0.5" step="0.5" value="${r.qte}"
+        onchange="tourneeRows[${i}].qte=parseFloat(this.value)||1;updateTourneePreview()"
+        style="flex:1;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-align:center;">
+      <button onclick="tourneeRows.splice(${i},1);renderTourneeRows()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">✕</button>
+    </div>`).join('');
+  updateTourneePreview();
+}
+
+function updateTourneePreview(){
+  const box=document.getElementById('t-preview');
+  if(!tourneeRows.length){box.className='preview-box neutral';box.innerHTML='<div style="color:var(--muted);font-size:12px;">Ajoutez des boissons...</div>';return;}
+  let lines='',totalCA=0,totalBen=0,totalCasiers=0;
+  tourneeRows.forEach(r=>{
+    const p=produits.find(x=>x.id===r.produitId);if(!p)return;
+    const ca=r.qte*p.vente,ben=r.qte*(p.vente-p.achat);
+    totalCA+=ca;totalBen+=ben;totalCasiers+=r.qte;
+    lines+=`<div class="preview-row"><span class="lbl">${p.nom} ×${fmtDec(r.qte)}</span><span class="val">${fmt(ca)} ${D()}</span></div>`;
+  });
+  box.className='preview-box good';
+  box.innerHTML=lines+`<div style="border-top:1px dashed var(--border);margin:6px 0;"></div>
+    <div class="preview-row"><span class="lbl">Total casiers</span><span class="val">${fmtDec(totalCasiers)}</span></div>
+    <div class="preview-row"><span class="lbl">CA potentiel</span><span class="val" style="color:var(--gold)">${fmt(totalCA)} ${D()}</span></div>
+    <div class="preview-row"><span class="lbl">Bénéfice potentiel</span><span class="val" style="color:var(--success)">+${fmt(totalBen)} ${D()}</span></div>`;
+}
+
+function saveTournee(){
+  if(!tourneeRows.length){alert('Ajoutez au moins une boisson');return;}
+  const vendeur=document.getElementById('t-vendeur').value.trim()||'Vendeur';
+  const type=document.getElementById('t-type').value;
+  for(const r of tourneeRows){
+    const p=produits.find(x=>x.id===r.produitId);
+    if(!p||r.qte>p.stock){alert(`Stock insuffisant pour ${p?.nom||'?'} (${fmtDec(p?.stock||0)} dispo)`);return;}
+  }
+  const lignes=tourneeRows.map(r=>{
+    const p=produits.find(x=>x.id===r.produitId);
+    p.stock=Math.max(0,(p.stock||0)-r.qte);
+    return{produitId:r.produitId,nom:p.nom,type:p.type,qteEnvoyee:r.qte,prixVente:p.vente,prixAchat:p.achat};
+  });
+  const totalCasiersPleins=lignes.filter(l=>l.type!=='plastique').reduce((s,l)=>s+l.qteEnvoyee,0);
+  tournees.unshift({id:uid(),vendeur,type,lignes,totalCasiersPleins,statut:'en_cours',ts:Date.now(),date:nowStr(),
+    invendus:[],casiersPleinsVendus:0,totalVente:0,totalBenefice:0,videsConfirmes:false,casiersVidesRecus:0,pertes:0});
+  save();closeModal('modal-tournee');renderTournees();renderStock();updateStats();
+}
+
+function renderTournees(){
+  let list=tournees;
+  if(filters.tournees==='voiture') list=list.filter(t=>t.type==='voiture');
+  if(filters.tournees==='chariot') list=list.filter(t=>t.type==='chariot');
+  if(filters.tournees==='depot') list=list.filter(t=>t.type==='depot');
+  if(filters.tournees==='open') list=list.filter(t=>t.statut==='en_cours');
+  const div=document.getElementById('tournees-list');
+  if(!list.length){div.innerHTML='<div class="empty"><div class="e-icon">🚗</div><p>Aucune tournée enregistrée</p></div>';return;}
+  div.innerHTML=list.map(t=>{
+    const totalEnvoye=t.lignes.reduce((s,l)=>s+l.qteEnvoyee,0);
+    const totalRetour=t.invendus.reduce((s,i)=>s+i.qteRetour,0);
+    const statBadge=t.statut==='en_cours'?'<span class="badge warn">⏳ En cours</span>':'<span class="badge ok">✅ Terminée</span>';
+    return`<div class="tournee-card">
+      <div class="t-header">
+        <div class="t-avatar ${t.type}">${iconType(t.type)}</div>
+        <div class="t-info">
+          <div class="t-nom">${t.vendeur} ${statBadge}</div>
+          <div class="t-date">${t.date}</div>
+        </div>
+        <div class="action-btns">
+          ${t.statut==='en_cours'?`<button class="btn sm success" onclick="openRetour('${t.id}')">📥 Retour</button>`:''}
+          <button class="icon-btn del" onclick="deleteTournee('${t.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="t-stats">
+        <div class="t-stat"><div class="t-stat-val c-gold">${fmtDec(totalEnvoye)}</div><div class="t-stat-lbl">Envoyés</div></div>
+        <div class="t-stat"><div class="t-stat-val c-warn">${fmtDec(totalRetour)}</div><div class="t-stat-lbl">Retournés</div></div>
+        <div class="t-stat"><div class="t-stat-val c-green">${fmtDec(t.casiersPleinsVendus||0)}</div><div class="t-stat-lbl">Vendus</div></div>
+        <div class="t-stat"><div class="t-stat-val c-green" style="font-size:12px">${fmt(t.totalVente||0)}<small style="font-size:9px"> ${D()}</small></div><div class="t-stat-lbl">Recette</div></div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:var(--mono);">
+        ${t.lignes.map(l=>`${l.nom}: ${fmtDec(l.qteEnvoyee)} envoyé → ${fmtDec(l.qteEnvoyee-(t.invendus.find(i=>i.produitId===l.produitId)?.qteRetour||0))} vendu`).join(' | ')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteTournee(id){
+  const t=tournees.find(x=>x.id===id);
+  if(!confirm(`Supprimer la tournée de ${t.vendeur} ?`)) return;
+  if(t.statut==='en_cours'||t.type==='depot'){t.lignes.forEach(l=>{const p=produits.find(x=>x.id===l.produitId);if(p)p.stock+=l.qteEnvoyee;});}
+  tournees=tournees.filter(x=>x.id!==id);
+  save();renderTournees();renderStock();updateStats();
+}
+
+function openRetour(id){
+  currentRetourId=id;
+  const t=tournees.find(x=>x.id===id);
+  document.getElementById('retour-info').innerHTML=`<b>${t.vendeur}</b> — ${labelType(t.type)} — Départ: ${t.date}`;
+  document.getElementById('retour-fields').innerHTML=t.lignes.map(l=>`
+    <div style="margin-bottom:10px;padding:10px;background:var(--surface2);border-radius:10px;">
+      <div style="font-family:var(--font);font-weight:700;font-size:13px;margin-bottom:6px;">${l.nom} — envoyé: <b>${fmtDec(l.qteEnvoyee)}</b></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap;">Invendus :</span>
+        <input type="number" id="inv-${l.produitId}" min="0" max="${l.qteEnvoyee}" step="0.5" value="0"
+          oninput="calcRetourPreview()"
+          style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:7px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;text-align:center;">
+      </div>
+    </div>`).join('');
+  calcRetourPreview();
+  document.getElementById('modal-retour').classList.add('open');
+}
+
+function calcRetourPreview(){
+  const t=tournees.find(x=>x.id===currentRetourId);if(!t)return;
+  let tEnv=0,tRet=0,tVend=0,tVente=0,tBen=0;
+  t.lignes.forEach(l=>{
+    const inv=parseFloat(document.getElementById('inv-'+l.produitId)?.value)||0;
+    const vend=l.qteEnvoyee-inv;
+    tEnv+=l.qteEnvoyee;tRet+=inv;tVend+=vend;tVente+=vend*l.prixVente;tBen+=vend*(l.prixVente-l.prixAchat);
+  });
+  const box=document.getElementById('retour-preview');
+  box.className='preview-box'+(tBen>=0?' good':' neutral');
+  box.innerHTML=`<div class="preview-row"><span class="lbl">Casiers envoyés</span><span class="val">${fmtDec(tEnv)}</span></div>
+    <div class="preview-row"><span class="lbl">Invendus retournés</span><span class="val c-warn">${fmtDec(tRet)}</span></div>
+    <div class="preview-row"><span class="lbl">Casiers vendus</span><span class="val c-green">${fmtDec(tVend)}</span></div>
+    <div style="border-top:1px dashed var(--border);margin:5px 0;"></div>
+    <div class="preview-row"><span class="lbl">Recette totale</span><span class="val" style="color:var(--gold)">${fmt(tVente)} ${D()}</span></div>
+    <div class="preview-row"><span class="lbl">Bénéfice estimé</span><span class="val" style="color:var(--success)">+${fmt(tBen)} ${D()}</span></div>`;
+}
+
+function confirmerRetour(){
+  const t=tournees.find(x=>x.id===currentRetourId);if(!t)return;
+  let tCasVend=0,tVente=0,tBen=0;
+  t.invendus=t.lignes.map(l=>{
+    const inv=parseFloat(document.getElementById('inv-'+l.produitId)?.value)||0;
+    const vend=l.qteEnvoyee-inv;
+    tCasVend+=vend;tVente+=vend*l.prixVente;tBen+=vend*(l.prixVente-l.prixAchat);
+    if(inv>0){const p=produits.find(x=>x.id===l.produitId);if(p)p.stock+=inv;}
+    return{produitId:l.produitId,nom:l.nom,type:l.type,qteRetour:inv};
+  });
+  t.casiersPleinsVendus=tCasVend;t.totalVente=tVente;t.totalBenefice=tBen;
+  t.statut='termine';t.dateRetour=nowStr();
+  save();closeModal('modal-retour');renderTournees();renderStock();renderCasiersVides();updateStats();
+}
+
+// ══════════════════════════════════════════
+//  VENTES AU DÉPÔT (vente directe, sans tournée)
+// ══════════════════════════════════════════
+let depotRows=[];
+
+function iconType(type){ return type==='voiture'?'🚗':type==='depot'?'🏪':'🛒'; }
+function labelType(type){ return type==='voiture'?'🚗 Véhicule':type==='depot'?'🏪 Dépôt':'🛒 Chariot'; }
+
+function openModalDepot(){
+  depotRows=[];
+  document.getElementById('d-client').value='';
+  renderDepotRows();
+  document.getElementById('modal-depot').classList.add('open');
+}
+
+function addLigneDepot(){
+  if(!produits.length){alert('Ajoutez d\'abord des boissons au stock');return;}
+  depotRows.push({produitId:produits[0].id,qte:1});
+  renderDepotRows();
+}
+
+function renderDepotRows(){
+  const div=document.getElementById('d-lignes');
+  if(!depotRows.length){div.innerHTML='';updateDepotPreview();return;}
+  div.innerHTML=depotRows.map((r,i)=>`
+    <div style="display:flex;gap:7px;align-items:center;margin-bottom:8px;">
+      <select onchange="depotRows[${i}].produitId=this.value;updateDepotPreview()"
+        style="flex:2;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;">
+        ${produits.map(p=>`<option value="${p.id}" ${r.produitId===p.id?'selected':''}>${p.nom} (${fmtDec(p.stock)})</option>`).join('')}
+      </select>
+      <input type="number" min="0.5" step="0.5" value="${r.qte}"
+        onchange="depotRows[${i}].qte=parseFloat(this.value)||1;updateDepotPreview()"
+        style="flex:1;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-align:center;">
+      <button onclick="depotRows.splice(${i},1);renderDepotRows()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">✕</button>
+    </div>`).join('');
+  updateDepotPreview();
+}
+
+function updateDepotPreview(){
+  const box=document.getElementById('d-preview');
+  if(!depotRows.length){box.className='preview-box neutral';box.innerHTML='<div style="color:var(--muted);font-size:12px;">Ajoutez des boissons...</div>';return;}
+  let lines='',totalCA=0,totalBen=0,totalCasiers=0;
+  depotRows.forEach(r=>{
+    const p=produits.find(x=>x.id===r.produitId);if(!p)return;
+    const ca=r.qte*p.vente,ben=r.qte*(p.vente-p.achat);
+    totalCA+=ca;totalBen+=ben;totalCasiers+=r.qte;
+    lines+=`<div class="preview-row"><span class="lbl">${p.nom} ×${fmtDec(r.qte)}</span><span class="val">${fmt(ca)} ${D()}</span></div>`;
+  });
+  box.className='preview-box good';
+  box.innerHTML=lines+`<div style="border-top:1px dashed var(--border);margin:6px 0;"></div>
+    <div class="preview-row"><span class="lbl">Total casiers</span><span class="val">${fmtDec(totalCasiers)}</span></div>
+    <div class="preview-row"><span class="lbl">Recette</span><span class="val" style="color:var(--gold)">${fmt(totalCA)} ${D()}</span></div>
+    <div class="preview-row"><span class="lbl">Bénéfice</span><span class="val" style="color:var(--success)">+${fmt(totalBen)} ${D()}</span></div>`;
+}
+
+function saveDepot(){
+  if(!depotRows.length){alert('Ajoutez au moins une boisson');return;}
+  for(const r of depotRows){
+    const p=produits.find(x=>x.id===r.produitId);
+    if(!p||r.qte>p.stock){alert(`Stock insuffisant pour ${p?.nom||'?'} (${fmtDec(p?.stock||0)} dispo)`);return;}
+  }
+  const vendeur=document.getElementById('d-client').value.trim()||'Vente comptoir';
+  const lignes=depotRows.map(r=>{
+    const p=produits.find(x=>x.id===r.produitId);
+    p.stock=Math.max(0,(p.stock||0)-r.qte);
+    return{produitId:r.produitId,nom:p.nom,type:p.type,qteEnvoyee:r.qte,prixVente:p.vente,prixAchat:p.achat};
+  });
+  let casVend=0,tVente=0,tBen=0;
+  lignes.forEach(l=>{casVend+=l.qteEnvoyee;tVente+=l.qteEnvoyee*l.prixVente;tBen+=l.qteEnvoyee*(l.prixVente-l.prixAchat);});
+  const totalCasiersPleins=lignes.filter(l=>l.type!=='plastique').reduce((s,l)=>s+l.qteEnvoyee,0);
+  // Vente directe : elle est terminée dès l'enregistrement (pas de départ ni de retour d'invendus)
+  tournees.unshift({id:uid(),vendeur,type:'depot',lignes,totalCasiersPleins,statut:'termine',ts:Date.now(),date:nowStr(),dateRetour:nowStr(),
+    invendus:[],casiersPleinsVendus:casVend,totalVente:tVente,totalBenefice:tBen,videsConfirmes:false,casiersVidesRecus:0,pertes:0});
+  save();closeModal('modal-depot');renderTournees();renderStock();renderCasiersVides();updateStats();
+}
+
+// ══════════════════════════════════════════
+//  CASIERS VIDES
+// ══════════════════════════════════════════
+let currentCVId=null;
+function renderCasiersVides(){
+  const totalAttendus=tournees.filter(t=>t.statut==='termine').reduce((s,t)=>s+(t.casiersPleinsVendus||0),0);
+  const totalRecus=casVides.reduce((s,c)=>s+(c.casiersComplets||0),0);
+  const totalPertes=casVides.reduce((s,c)=>s+(c.pertes||0),0);
+  const totalSobraga=sobragaLog.reduce((s,e)=>s+(e.nb||0),0);
+  document.getElementById('cv-attendus').textContent=fmtDec(totalAttendus);
+  document.getElementById('cv-recus').textContent=fmtDec(totalRecus);
+  document.getElementById('cv-pertes').textContent=totalPertes+' btl';
+  document.getElementById('cv-sobraga').textContent=fmtDec(totalSobraga);
+  const tbody=document.getElementById('cv-tbody');
+  const list=tournees.filter(t=>t.statut==='termine'&&(t.casiersPleinsVendus||0)>0);
+  if(!list.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">Aucune tournée terminée</td></tr>';return;}
+  tbody.innerHTML=list.map(t=>{
+    const cv=casVides.find(c=>c.tourneeId===t.id);
+    return`<tr>
+      <td style="font-family:var(--font);font-weight:700">${t.vendeur}</td>
+      <td>${iconType(t.type)}</td>
+      <td style="color:var(--gold);font-weight:700">${fmtDec(t.casiersPleinsVendus)}</td>
+      <td>${cv?fmtDec(cv.casiersComplets):'-'}</td>
+      <td style="color:${(cv?.pertes||0)>0?'var(--danger)':'var(--muted)'}">${cv?cv.pertes+' btl':'-'}</td>
+      <td>${cv?'<span class="badge ok">✅ Confirmé</span>':'<span class="badge warn">⏳ En attente</span>'}</td>
+      <td>${!cv?`<button class="btn sm success" onclick="openCV('${t.id}')">Confirmer</button>`:''}</td>
+    </tr>`;
+  }).join('');
+  const sobTbody=document.getElementById('sobraga-tbody');
+  sobTbody.innerHTML=sobragaLog.length?sobragaLog.map(e=>`<tr><td>${e.date}</td><td style="color:var(--gold);font-weight:700">${e.nb} casiers</td><td style="color:var(--muted)">${e.notes||'—'}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">Aucun envoi</td></tr>';
+}
+
+function openCV(id){
+  currentCVId=id;
+  const t=tournees.find(x=>x.id===id);
+  document.getElementById('cv-info').innerHTML=`<b>${t.vendeur}</b> — Casiers pleins vendus : <b style="color:var(--gold)">${fmtDec(t.casiersPleinsVendus)}</b>`;
+  document.getElementById('cv-complets').value='';
+  document.getElementById('cv-vrac').value='';
+  document.getElementById('cv-preview').className='preview-box neutral';
+  document.getElementById('cv-preview').innerHTML='<div style="color:var(--muted)">Remplissez...</div>';
+  document.getElementById('modal-cv').classList.add('open');
+}
+
+function calcCvPreview(){
+  const t=tournees.find(x=>x.id===currentCVId);if(!t)return;
+  const complets=parseInt(document.getElementById('cv-complets').value)||0;
+  const vrac=parseInt(document.getElementById('cv-vrac').value)||0;
+  const taille=parseInt(document.getElementById('cv-taille').value)||24;
+  const btlRecues=complets*taille+vrac;
+  const btlAttendues=Math.round(t.casiersPleinsVendus)*taille;
+  const pertes=Math.max(0,btlAttendues-btlRecues);
+  const box=document.getElementById('cv-preview');
+  box.className='preview-box'+(pertes>0?' bad':' good');
+  box.innerHTML=`<div class="preview-row"><span class="lbl">Casiers complets reçus</span><span class="val">${complets}</span></div>
+    <div class="preview-row"><span class="lbl">Bouteilles en vrac</span><span class="val">${vrac}</span></div>
+    <div class="preview-row"><span class="lbl">Bouteilles attendues (~)</span><span class="val">${btlAttendues}</span></div>
+    <div class="preview-row"><span class="lbl">Bouteilles reçues (~)</span><span class="val">${btlRecues}</span></div>
+    <div style="border-top:1px dashed var(--border);margin:5px 0;"></div>
+    <div class="preview-row"><span class="lbl">Résultat</span><span class="val" style="color:${pertes>0?'var(--danger)':'var(--success)'}">${pertes>0?'⚠️ '+pertes+' bouteilles manquantes':'✅ Complet'}</span></div>`;
+}
+
+function confirmerCV(){
+  const t=tournees.find(x=>x.id===currentCVId);if(!t)return;
+  const complets=parseInt(document.getElementById('cv-complets').value)||0;
+  const vrac=parseInt(document.getElementById('cv-vrac').value)||0;
+  const taille=parseInt(document.getElementById('cv-taille').value)||24;
+  const pertes=Math.max(0,Math.round(t.casiersPleinsVendus)*taille-(complets*taille+vrac));
+  casVides.push({id:uid(),tourneeId:t.id,vendeur:t.vendeur,casiersComplets:complets,bouteillesVrac:vrac,pertes,date:nowStr(),ts:Date.now()});
+  t.videsConfirmes=true;t.casiersVidesRecus=complets;t.pertes=pertes;
+  save();closeModal('modal-cv');renderCasiersVides();updateStats();
+}
+
+function envoyerSobraga(){
+  const nb=parseFloat(document.getElementById('sobraga-nb').value)||0;
+  if(nb<=0){alert('Nombre invalide');return;}
+  sobragaLog.push({id:uid(),nb,date:nowStr(),ts:Date.now()});
+  document.getElementById('sobraga-nb').value='';
+  save();renderCasiersVides();
+}
+
+// ══════════════════════════════════════════
+//  FOURNISSEURS & COMMANDES
+// ══════════════════════════════════════════
+let editFournId=null,cmdRows=[],currentCmdId=null;
+
+function renderFournisseurs(){
+  const el=document.getElementById('fournisseurs-list');
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;">Fournisseurs enregistrés</div>`+
+    fournisseurs.map(f=>`<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;margin:4px;font-size:12px;">
+      📦 <b>${f.nom}</b>${f.tel?` · ${f.tel}`:''}
+      <button onclick="deleteFourn('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:14px;margin-left:4px;">✕</button>
+    </div>`).join('');
+}
+
+function openModalFournisseur(id){
+  editFournId=id||null;
+  document.getElementById('modal-fourn-title').textContent=id?'Modifier fournisseur':'Ajouter un fournisseur';
+  ['f-nom','f-tel','f-notes'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  if(id){const f=fournisseurs.find(x=>x.id===id);
+    document.getElementById('f-nom').value=f.nom;document.getElementById('f-tel').value=f.tel||'';document.getElementById('f-notes').value=f.notes||'';}
+  document.getElementById('modal-fournisseur').classList.add('open');
+}
+
+function saveFournisseur(){
+  const nom=document.getElementById('f-nom').value.trim();if(!nom){alert('Nom requis');return;}
+  let f=editFournId?fournisseurs.find(x=>x.id===editFournId):{id:uid()};
+  f.nom=nom;f.tel=document.getElementById('f-tel').value.trim();f.notes=document.getElementById('f-notes').value.trim();
+  if(!editFournId) fournisseurs.push(f);
+  // Mettre à jour select commande
+  updateCmdFournSelect();
+  save();closeModal('modal-fournisseur');renderFournisseurs();renderCommandes();
+}
+
+function deleteFourn(id){
+  if(id==='sobraga'){alert('Impossible de supprimer Sobraga');return;}
+  if(!confirm('Supprimer ce fournisseur ?')) return;
+  fournisseurs=fournisseurs.filter(x=>x.id!==id);
+  save();renderFournisseurs();
+}
+
+function updateCmdFournSelect(){
+  const sel=document.getElementById('cmd-fourn');if(!sel)return;
+  sel.innerHTML=fournisseurs.map(f=>`<option value="${f.id}">${f.nom}</option>`).join('');
+}
+
+function openModalCommande(){
+  cmdRows=[];
+  document.getElementById('cmd-ref').value='CMD-'+Date.now().toString().slice(-4);
+  updateCmdFournSelect();
+  renderCmdRows();
+  document.getElementById('modal-commande').classList.add('open');
+}
+
+function addLigneCommande(){
+  if(!produits.length){alert('Ajoutez d\'abord des boissons');return;}
+  cmdRows.push({produitId:produits[0].id,qte:1});renderCmdRows();
+}
+
+function renderCmdRows(){
+  const div=document.getElementById('cmd-lignes');
+  if(!cmdRows.length){div.innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px 0;">Cliquez + pour ajouter</div>';return;}
+  div.innerHTML=cmdRows.map((r,i)=>`
+    <div style="display:flex;gap:7px;align-items:center;margin-bottom:8px;">
+      <select onchange="cmdRows[${i}].produitId=this.value"
+        style="flex:2;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;">
+        ${produits.map(p=>`<option value="${p.id}" ${r.produitId===p.id?'selected':''}>${p.nom}</option>`).join('')}
+      </select>
+      <input type="number" min="0.5" step="0.5" value="${r.qte}" onchange="cmdRows[${i}].qte=parseFloat(this.value)||1"
+        style="flex:1;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-align:center;">
+      <button onclick="cmdRows.splice(${i},1);renderCmdRows()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">✕</button>
+    </div>`).join('');
+}
+
+function saveCommande(){
+  if(!cmdRows.length){alert('Ajoutez des boissons');return;}
+  const fournId=document.getElementById('cmd-fourn').value;
+  const fourn=fournisseurs.find(x=>x.id===fournId);
+  const ref=document.getElementById('cmd-ref').value.trim();
+  const lignes=cmdRows.map(r=>{const p=produits.find(x=>x.id===r.produitId);return{produitId:r.produitId,nom:p?.nom||'?',type:p?.type,qteCommandee:r.qte,qteLivree:0};});
+  commandes.push({id:uid(),ref,fournisseur:fourn?.nom||'?',fournisseurId:fournId,lignes,statut:'en_attente',date:nowStr(),ts:Date.now()});
+  save();closeModal('modal-commande');renderCommandes();
+}
+
+function renderCommandes(){
+  renderFournisseurs();
+  const div=document.getElementById('commandes-list');
+  if(!commandes.length){div.innerHTML='<div class="empty"><div class="e-icon">📋</div><p>Aucune commande</p></div>';return;}
+  div.innerHTML=commandes.map(c=>{
+    const statBadge=c.statut==='livree'?'<span class="badge ok">✅ Livrée</span>':c.statut==='partielle'?'<span class="badge warn">⚠️ Partielle</span>':'<span class="badge warn">⏳ En attente</span>';
+    return`<div class="cmd-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div><div style="font-family:var(--font);font-weight:800;font-size:14px;">📋 ${c.ref} — ${c.fournisseur} ${statBadge}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);">${c.date}</div></div>
+        <div class="action-btns">
+          ${c.statut!=='livree'?`<button class="btn sm success" onclick="openLivraison('${c.id}')">🚛 Livraison</button>`:''}
+          <button class="icon-btn del" onclick="deleteCommande('${c.id}')">🗑️</button>
+        </div>
+      </div>
+      <div style="font-size:12px;font-family:var(--mono);color:var(--muted);">
+        ${c.lignes.map(l=>`${l.nom}: commandé <b style="color:var(--text)">${fmtDec(l.qteCommandee)}</b> | reçu <b style="color:${l.qteLivree===l.qteCommandee?'var(--success)':l.qteLivree>0?'var(--warn)':'var(--muted)'}">${fmtDec(l.qteLivree)}</b>`).join(' &nbsp;|&nbsp; ')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteCommande(id){if(!confirm('Supprimer ?'))return;commandes=commandes.filter(x=>x.id!==id);save();renderCommandes();}
+
+function openLivraison(id){
+  currentCmdId=id;const c=commandes.find(x=>x.id===id);
+  document.getElementById('livraison-info').innerHTML=`<b>${c.ref}</b> — ${c.fournisseur} — ${c.date}`;
+  document.getElementById('livraison-fields').innerHTML=c.lignes.map(l=>`
+    <div style="margin-bottom:10px;padding:10px;background:var(--surface2);border-radius:10px;">
+      <div style="font-family:var(--font);font-weight:700;font-size:13px;margin-bottom:6px;">${l.nom} — commandé: <b>${fmtDec(l.qteCommandee)}</b></div>
+      <div style="display:flex;gap:8px;align-items:center;"><span style="font-size:11px;color:var(--muted);">Reçus :</span>
+        <input type="number" id="liv-${l.produitId}" min="0" step="0.5" value="${l.qteCommandee}" oninput="calcLivraisonPreview()"
+          style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:7px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;text-align:center;"></div>
+    </div>`).join('');
+  calcLivraisonPreview();
+  document.getElementById('modal-livraison').classList.add('open');
+}
+
+function calcLivraisonPreview(){
+  const c=commandes.find(x=>x.id===currentCmdId);if(!c)return;
+  let ok=true,lines='';
+  c.lignes.forEach(l=>{
+    const recu=parseFloat(document.getElementById('liv-'+l.produitId)?.value)||0;
+    const diff=recu-l.qteCommandee;if(diff!==0)ok=false;
+    lines+=`<div class="preview-row"><span class="lbl">${l.nom}</span><span class="val" style="color:${diff<0?'var(--danger)':diff>0?'var(--warn)':'var(--success)'}">${fmtDec(recu)}/${fmtDec(l.qteCommandee)} ${diff<0?'(manque '+Math.abs(diff)+')':diff>0?'(surplus '+diff+')':'✅'}</span></div>`;
+  });
+  const box=document.getElementById('livraison-preview');
+  box.className='preview-box'+(ok?' good':' bad');
+  box.innerHTML=lines+`<div style="border-top:1px dashed var(--border);margin:5px 0;"></div><div class="preview-row"><span class="lbl">Livraison</span><span class="val" style="color:${ok?'var(--success)':'var(--warn)'}">${ok?'✅ Complète':'⚠️ Incomplète'}</span></div>`;
+}
+
+function confirmerLivraison(){
+  const c=commandes.find(x=>x.id===currentCmdId);if(!c)return;
+  let complete=true;
+  c.lignes.forEach(l=>{
+    const recu=parseFloat(document.getElementById('liv-'+l.produitId)?.value)||0;
+    l.qteLivree=recu;if(recu<l.qteCommandee)complete=false;
+    const p=produits.find(x=>x.id===l.produitId);if(p)p.stock+=recu;
+  });
+  c.statut=complete?'livree':'partielle';c.dateLivraison=nowStr();
+  save();closeModal('modal-livraison');renderCommandes();renderStock();updateStats();
+}
+
+// ══════════════════════════════════════════
+//  ANALYSE
+// ══════════════════════════════════════════
+function getAnalyseTournees(){
+  const now=new Date();
+  const s7=new Date(now);s7.setDate(s7.getDate()-7);s7.setHours(0,0,0,0);
+  const s30=new Date(now);s30.setDate(s30.getDate()-30);s30.setHours(0,0,0,0);
+  const start=filters.analyse==='week'?s7.getTime():filters.analyse==='month'?s30.getTime():0;
+  return tournees.filter(t=>t.statut==='termine'&&t.ts>=start);
+}
+
+function renderAnalyse(){
+  const list=getAnalyseTournees();
+  // Produit star
+  const venteParProduit={};
+  list.forEach(t=>t.lignes.forEach(l=>{
+    const inv=(t.invendus.find(i=>i.produitId===l.produitId)?.qteRetour||0);
+    const vendu=l.qteEnvoyee-inv;
+    if(!venteParProduit[l.nom]) venteParProduit[l.nom]={qte:0,ca:0};
+    venteParProduit[l.nom].qte+=vendu;
+    venteParProduit[l.nom].ca+=vendu*l.prixVente;
+  }));
+  const sorted=Object.entries(venteParProduit).sort((a,b)=>b[1].ca-a[1].ca);
+  const star=sorted[0];
+  document.getElementById('star-produit').innerHTML=star?`
+    <div class="star-card">
+      <div class="star-icon">🏆</div>
+      <div class="star-info">
+        <div class="star-label">⭐ Boisson star de la période</div>
+        <div class="star-nom">${star[0]}</div>
+        <div class="star-stats">${fmtDec(star[1].qte)} casiers vendus — ${fmt(star[1].ca)} ${D()}</div>
+      </div>
+    </div>`:'<div class="empty"><div class="e-icon">🏆</div><p>Aucune vente sur cette période</p></div>';
+
+  // Mini stats
+  const totalCA=list.reduce((s,t)=>s+(t.totalVente||0),0);
+  const totalBen=list.reduce((s,t)=>s+(t.totalBenefice||0),0);
+  document.getElementById('analyse-mini-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">CA période</div><div class="stat-value c-gold">${fmt(totalCA)} ${D()}</div></div>
+    <div class="stat-card"><div class="stat-label">Bénéfice</div><div class="stat-value c-green">${fmt(totalBen)} ${D()}</div></div>`;
+
+  // Boissons
+  const maxCA=sorted[0]?.[1]?.ca||1;
+  document.getElementById('analyse-boissons').innerHTML=sorted.length?sorted.map(([nom,d])=>`
+    <div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-family:var(--font);font-weight:700;font-size:13px;">${nom}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--gold)">${fmtDec(d.qte)} cas — ${fmt(d.ca)} ${D()}</span>
+      </div>
+      <div class="analyse-bar"><div class="analyse-fill" style="width:${(d.ca/maxCA*100).toFixed(0)}%"></div></div>
+    </div>`).join(''):'<p style="color:var(--muted);font-size:12px;">Aucune donnée</p>';
+
+  // Meilleur jour
+  const jours=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const parJour=Array(7).fill(0).map(()=>({ca:0,nb:0}));
+  list.forEach(t=>{const j=new Date(t.ts).getDay();parJour[j].ca+=t.totalVente||0;parJour[j].nb++;});
+  const maxJ=Math.max(...parJour.map(j=>j.ca))||1;
+  document.getElementById('analyse-jours').innerHTML=parJour.map((j,i)=>`
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+        <span style="font-size:12px;">${jours[i]}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${j.nb} tournée(s) — ${fmt(j.ca)} ${D()}</span>
+      </div>
+      <div class="analyse-bar"><div class="analyse-fill" style="width:${j.ca>0?(j.ca/maxJ*100).toFixed(0):0}%;${j.ca===maxJ?'background:linear-gradient(90deg,var(--gold),var(--gold2));':''}" ></div></div>
+    </div>`).join('');
+
+  // Vendeurs
+  const parVendeur={};
+  list.forEach(t=>{if(!parVendeur[t.vendeur])parVendeur[t.vendeur]={ca:0,nb:0,type:t.type};parVendeur[t.vendeur].ca+=t.totalVente||0;parVendeur[t.vendeur].nb++;});
+  const vendSorted=Object.entries(parVendeur).sort((a,b)=>b[1].ca-a[1].ca);
+  const maxV=vendSorted[0]?.[1]?.ca||1;
+  document.getElementById('analyse-vendeurs').innerHTML=vendSorted.length?vendSorted.map(([nom,d])=>`
+    <div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+        <span style="font-family:var(--font);font-weight:700;font-size:13px;">${iconType(d.type)} ${nom}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--gold)">${d.nb} tournée(s) — ${fmt(d.ca)} ${D()}</span>
+      </div>
+      <div class="analyse-bar"><div class="analyse-fill" style="width:${(d.ca/maxV*100).toFixed(0)}%"></div></div>
+    </div>`).join(''):'<p style="color:var(--muted);font-size:12px;">Aucune donnée</p>';
+}
+
+// ══════════════════════════════════════════
+//  RAPPORT
+// ══════════════════════════════════════════
+function renderRapport(){
+  const now=new Date();
+  const sD=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  const sW=(()=>{const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d.getTime();})();
+  const sM=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+  const start=filters.rapport==='today'?sD:filters.rapport==='week'?sW:sM;
+  const list=tournees.filter(t=>t.ts>=start&&t.statut==='termine');
+  const el=document.getElementById('rapport-content');
+  const lbl=filters.rapport==='today'?"Aujourd'hui":filters.rapport==='week'?'Cette semaine':'Ce mois';
+  if(!list.length){el.innerHTML='<div class="empty"><div class="e-icon">📄</div><p>Aucune donnée pour cette période</p></div>';return;}
+  const totalCA=list.reduce((s,t)=>s+(t.totalVente||0),0);
+  const totalBen=list.reduce((s,t)=>s+(t.totalBenefice||0),0);
+  const totalEnv=list.reduce((s,t)=>s+t.lignes.reduce((ss,l)=>ss+l.qteEnvoyee,0),0);
+  const totalVend=list.reduce((s,t)=>s+(t.casiersPleinsVendus||0),0);
+  const totalPertes=casVides.filter(c=>c.ts>=start).reduce((s,c)=>s+(c.pertes||0),0);
+  el.innerHTML=`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow);">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:14px;">📄 Rapport — ${lbl}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div class="stat-card"><div class="stat-label">Tournées</div><div class="stat-value c-gold">${list.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Casiers envoyés</div><div class="stat-value c-blue">${fmtDec(totalEnv)}</div></div>
+        <div class="stat-card"><div class="stat-label">Casiers vendus</div><div class="stat-value c-green">${fmtDec(totalVend)}</div></div>
+        <div class="stat-card"><div class="stat-label">Taux vente</div><div class="stat-value c-gold">${totalEnv>0?(totalVend/totalEnv*100).toFixed(0):0}%</div></div>
+      </div>
+      <div style="font-family:var(--mono);font-size:13px;">
+        <div class="bilan-row"><span class="bilan-lbl">💰 Recette totale</span><b class="bilan-val" style="color:var(--gold)">${fmt(totalCA)} ${D()}</b></div>
+        <div class="bilan-row"><span class="bilan-lbl">📈 Bénéfice estimé</span><b class="bilan-val" style="color:${totalBen>=0?'var(--success)':'var(--danger)'}">${totalBen>=0?'+':''}${fmt(totalBen)} ${D()}</b></div>
+        <div class="bilan-row"><span class="bilan-lbl">📦 Pertes bouteilles</span><b class="bilan-val" style="color:${totalPertes>0?'var(--danger)':'var(--success)'}">${totalPertes>0?totalPertes+' btl':'Aucune perte ✅'}</b></div>
+      </div>
+      ${list.length?`<div style="margin-top:14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;">Détail par tournée</div>
+      ${list.map(t=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--mono);">
+        <span>${iconType(t.type)} ${t.vendeur} <span style="color:var(--muted)">${t.date.split(' ')[0]}</span></span>
+        <span>${fmtDec(t.casiersPleinsVendus||0)} vendus — <b style="color:var(--gold)">${fmt(t.totalVente||0)} ${D()}</b></span>
+      </div>`).join('')}`:''}
+    </div>`;
+}
+
+function scrollToGuide(id, btn){
+  document.querySelectorAll('#sec-aide .ftab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const el=document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function loadParams(){
+  const depot=document.getElementById('param-depot');
+  const devise=document.getElementById('param-devise');
+  const tel=document.getElementById('param-tel');
+  const delCode=document.getElementById('param-delete-code');
+  if(depot) depot.value=settings.depot||'';
+  if(devise) devise.value=settings.devise||'FCFA';
+  if(tel) tel.value=settings.tel||'';
+  if(delCode) delCode.value=settings.deleteCode||'';
+  // Info licence
+  const licEl=document.getElementById('param-licence-info');
+  if(licEl){
+    const lic=checkLicence();
+    if(lic){
+      const type=lic.type==='lifetime'?'♾️ À vie':lic.type==='monthly'?'📅 Mensuel':'⏳ Essai';
+      const jours=lic.expiry?Math.ceil((lic.expiry-Date.now())/86400000):null;
+      licEl.innerHTML=`Type : <b style="color:var(--gold)">${type}</b> — Code : <span style="font-family:var(--mono);">${lic.code}</span>${jours?`<br><b>${jours} jour(s) restants</b>`:''}`;
+    } else {
+      licEl.innerHTML='<span style="color:var(--danger)">Aucune licence active</span>';
+    }
+  }
+}
+function saveParams(){
+  const depot=document.getElementById('param-depot');
+  const devise=document.getElementById('param-devise');
+  const tel=document.getElementById('param-tel');
+  const delCode=document.getElementById('param-delete-code');
+  if(depot) settings.depot=depot.value;
+  if(devise) settings.devise=devise.value;
+  if(tel) settings.tel=tel.value;
+  if(delCode) settings.deleteCode=delCode.value;
+  save();
+}
+// ══════════════════════════════════════════
+//  MODULE IA
+// ══════════════════════════════════════════
+let iaActionsDetectees = [];
+
+async function analyserIA(){
+  const texte = document.getElementById('ia-texte').value.trim();
+  if(!texte){ alert('Collez un message d\'abord'); return; }
+  const btn = document.getElementById('ia-btn');
+  const result = document.getElementById('ia-result');
+  const content = document.getElementById('ia-result-content');
+  const title = document.getElementById('ia-result-title');
+  const applyZone = document.getElementById('ia-apply-zone');
+  btn.disabled=true; btn.textContent='⏳ Analyse en cours...';
+  result.classList.add('show');
+  title.textContent='🤖 Analyse en cours...';
+  content.innerHTML='<div class="ia-thinking"><div class="spin">⚙️</div><div style="margin-top:8px;font-size:12px;">L\'IA analyse votre message...</div></div>';
+  applyZone.style.display='none';
+  const listeProduits=produits.map(p=>`- ${p.nom} (${typeLabel(p.type)}, stock: ${fmtDec(p.stock)})`).join('\n');
+  const prompt=`Tu es un assistant pour une application de gestion de dépôt de boissons au Gabon.
+Produits disponibles :
+${listeProduits||'(Aucun produit enregistré)'}
+Analyse ce message et extrait les actions sur le stock :
+"${texte}"
+Réponds UNIQUEMENT en JSON valide sans texte autour :
+{"actions":[{"produit":"nom produit","quantite":nombre,"action":"entree|sortie|vente|retour_invendu|commande|livraison","description":"description courte"}],"resume":"phrase confirmation","confiance":"haute|moyenne|basse"}
+Règles:
+- entree = livraison reçue, stock qui arrive
+- commande = commande passée auprès d'un fournisseur, stock qui va arriver (traiter comme entree)
+- livraison = livraison reçue confirmée (traiter comme entree)
+- sortie = vente confirmée, stock qui part définitivement
+- vente = même chose que sortie
+- retour_invendu = invendus qui reviennent en stock (traiter comme entree)
+Si le produit n'est pas dans la liste, utilise quand même le nom mentionné dans le message.`;
+  try{
+    const response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await response.json();
+    const rawText=data.content?.[0]?.text||'';
+    let parsed;
+    try{ parsed=JSON.parse(rawText.replace(/```json|```/g,'').trim()); }
+    catch(e){ throw new Error('Réponse IA invalide'); }
+    iaActionsDetectees=parsed.actions||[];
+    title.textContent='✅ Analyse terminée';
+    const cc=parsed.confiance==='haute'?'var(--success)':parsed.confiance==='moyenne'?'var(--warn)':'var(--danger)';
+    let html=`<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:4px;">💬 ${parsed.resume}</div>
+      <div style="font-size:11px;color:var(--muted);">Confiance : <b style="color:${cc}">${parsed.confiance}</b></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;">Actions détectées :</div>`;
+    if(!iaActionsDetectees.length){
+      html+='<div style="color:var(--muted);font-size:12px;padding:12px;">Aucune action détectée.</div>';
+    } else {
+      iaActionsDetectees.forEach(a=>{
+        const p=produits.find(x=>x.nom.toLowerCase().includes(a.produit.toLowerCase())||a.produit.toLowerCase().includes(x.nom.toLowerCase()));
+        const icone=a.action==='entree'||a.action==='retour_invendu'?'📥':'📤';
+        const bc=a.action==='entree'||a.action==='retour_invendu'?'entree':'sortie';
+        const bl=a.action==='entree'?'Entrée':a.action==='retour_invendu'?'Retour invendu':'Vente/Sortie';
+        const stockInfo=p?` | Stock: ${fmtDec(p.stock)}`:'  | ⚠️ Produit non trouvé';
+        const nvStock=p?(a.action==='entree'||a.action==='retour_invendu'?p.stock+a.quantite:Math.max(0,p.stock-a.quantite)):null;
+        html+=`<div class="ia-action-card">
+          <div class="ia-action-icon">${icone}</div>
+          <div class="ia-action-info">
+            <div class="ia-action-nom">${a.produit}</div>
+            <div class="ia-action-detail">${a.description}${stockInfo}${nvStock!==null?' → <b style="color:var(--gold)">'+fmtDec(nvStock)+'</b>':''}</div>
+          </div>
+          <div style="text-align:center;">
+            <span class="ia-action-badge ${bc}">${bl}</span>
+            <div style="font-family:var(--mono);font-weight:800;font-size:16px;color:var(--gold);margin-top:4px;">${fmtDec(a.quantite)}</div>
+          </div>
+        </div>`;
+      });
+    }
+    content.innerHTML=html;
+    if(iaActionsDetectees.length>0) applyZone.style.display='block';
+  } catch(err){
+    title.textContent='❌ Erreur';
+    content.innerHTML=`<div style="color:var(--danger);font-size:12px;padding:12px;background:rgba(239,68,68,.08);border-radius:10px;">${err.message==='Failed to fetch'?'🌐 Pas de connexion internet.':'❌ '+err.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='🤖 Analyser avec l\'IA';
+}
+
+function appliquerIA(){
+  if(!iaActionsDetectees.length) return;
+  let nb=0; const nonTrouves=[];
+  iaActionsDetectees.forEach(a=>{
+    // Recherche flexible du produit
+    const p=produits.find(x=>
+      x.nom.toLowerCase().includes(a.produit.toLowerCase())||
+      a.produit.toLowerCase().includes(x.nom.toLowerCase())
+    );
+    if(!p){ nonTrouves.push(a.produit); return; }
+
+    // Appliquer selon l'action
+    if(a.action==='entree'||a.action==='retour_invendu'||a.action==='commande'||a.action==='livraison'){
+      // Entrée stock : livraison, commande reçue, retour invendu
+      p.stock = parseFloat(((p.stock||0)+a.quantite).toFixed(1));
+    } else if(a.action==='sortie'||a.action==='vente'){
+      // Sortie stock : vente confirmée
+      p.stock = parseFloat((Math.max(0,(p.stock||0)-a.quantite)).toFixed(1));
+    }
+    nb++;
+  });
+
+  save(); updateStats(); renderStock();
+
+  let msg=`✅ ${nb} modification(s) appliquée(s) au stock.`;
+  if(nonTrouves.length) msg+=`\n\n⚠️ Produits non trouvés : ${nonTrouves.join(', ')}.\nAjoutez-les d'abord dans 🍺 Stock.`;
+  alert(msg);
+
+  // Reset
+  document.getElementById('ia-texte').value='';
+  document.getElementById('ia-result').classList.remove('show');
+  iaActionsDetectees=[];
+}
+
+function openExport(){
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  document.getElementById('export-filename').textContent = `boissons_backup_${dateStr}.json`;
+  document.getElementById('modal-export').classList.add('open');
+}
+
+function downloadBackup(){
+  const data = {
+    produits, tournees, casVides, sobragaLog, commandes, fournisseurs, settings, clients, mouvementsClients,
+    exportedAt: nowStr(),
+    version: "2.0"
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  a.href = url;
+  a.download = `boissons_backup_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  closeModal('modal-export');
+}
+
+let importedData = null;
+
+function openImport(){ 
+  importedData = null;
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-placeholder').style.display = 'block';
+  document.getElementById('import-info').style.display = 'none';
+  document.getElementById('btn-restaurer').disabled = true;
+  document.getElementById('btn-restaurer').style.opacity = '0.5';
+  document.getElementById('btn-restaurer').style.cursor = 'not-allowed';
+  document.getElementById('modal-import').classList.add('open'); 
+}
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      importedData = JSON.parse(e.target.result);
+      document.getElementById('import-filename-display').textContent = file.name;
+      document.getElementById('import-placeholder').style.display = 'none';
+      document.getElementById('import-info').style.display = 'block';
+      document.getElementById('btn-restaurer').disabled = false;
+      document.getElementById('btn-restaurer').style.opacity = '1';
+      document.getElementById('btn-restaurer').style.cursor = 'pointer';
+    } catch (err) {
+      alert('❌ Erreur : Le fichier n\'est pas un fichier JSON valide.');
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmerImport(){
+  if(!importedData){alert('Sélectionnez un fichier d\'abord');return;}
+  try{
+    if(!confirm('Restaurer ces données ? Les données actuelles seront remplacées.')) return;
+    if(importedData.produits) produits=importedData.produits;
+    if(importedData.tournees) tournees=importedData.tournees;
+    if(importedData.casVides) casVides=importedData.casVides;
+    if(importedData.sobragaLog) sobragaLog=importedData.sobragaLog;
+    if(importedData.commandes) commandes=importedData.commandes;
+    if(importedData.fournisseurs) fournisseurs=importedData.fournisseurs;
+    if(importedData.settings) settings=importedData.settings;
+    if(importedData.clients) clients=importedData.clients;
+    if(importedData.mouvementsClients) mouvementsClients=importedData.mouvementsClients;
+    save();closeModal('modal-import');renderStock();updateStats();
+    alert('✅ Données restaurées avec succès !');
+  }catch(e){alert('❌ Une erreur est survenue lors de la restauration.');}
+}
+
+// ══════════════════════════════════════════
+//  CLIENTS / COMPTES CLIENTS
+// ══════════════════════════════════════════
+let editClientId=null, currentClientId=null;
+function clientMouvements(id){return mouvementsClients.filter(m=>m.clientId===id).sort((a,b)=>(b.ts||0)-(a.ts||0));}
+function clientSolde(id){
+  const out={argent:0,casiers:0,bouteilles:0};
+  clientMouvements(id).forEach(m=>{out.argent+=(m.argent||0);out.casiers+=(m.casiers||0);out.bouteilles+=(m.bouteilles||0);});
+  return out;
+}
+function renderClients(){
+  const q=(document.getElementById('clients-search')?.value||'').toLowerCase().trim();
+  const list=clients.filter(c=>!q||[c.nom,c.tel,c.adresse].join(' ').toLowerCase().includes(q));
+  let totalA=0,totalC=0,totalB=0;
+  clients.forEach(c=>{const x=clientSolde(c.id);totalA+=x.argent;totalC+=x.casiers;totalB+=x.bouteilles;});
+  const set=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=fmtDec(val);};
+  set('clients-count',clients.length);set('clients-dettes',fmt(totalA)+' '+D());set('clients-casiers',totalC);set('clients-bouteilles',totalB);
+  const el=document.getElementById('clients-list');
+  if(!list.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="e-icon">👥</div><p>Aucun client. Cliquez sur + Nouveau client</p></div>';return;}
+  el.innerHTML=list.map(c=>{const x=clientSolde(c.id);return `<div class="client-card" onclick="showClientDetail('${c.id}')"><div class="client-head"><div class="client-avatar">🏪</div><div><div class="client-name">${c.nom}</div><div class="client-meta">${c.tel||'Téléphone non renseigné'}${c.adresse?' · '+c.adresse:''}</div></div></div><div class="client-balances"><div class="client-balance"><b class="${x.argent>0?'balance-danger':'balance-ok'}">${fmt(x.argent)}</b><span>FCFA dus</span></div><div class="client-balance"><b class="${x.casiers>0?'balance-warn':'balance-ok'}">${fmtDec(x.casiers)}</b><span>casiers dus</span></div><div class="client-balance"><b class="${x.bouteilles>0?'balance-danger':'balance-ok'}">${fmtDec(x.bouteilles)}</b><span>bouteilles dues</span></div></div></div>`;}).join('');
+}
+function showClientDetail(id){
+  currentClientId=id; const zone=document.getElementById('client-detail-zone');
+  if(!id){zone.innerHTML='';return;}
+  const c=clients.find(x=>x.id===id);if(!c)return;const x=clientSolde(id), hist=clientMouvements(id);
+  zone.innerHTML=`<div class="client-detail"><div class="client-detail-head"><div><div class="client-detail-title">🏪 ${c.nom}</div><div class="client-detail-sub">${c.tel||'Téléphone non renseigné'}${c.adresse?' · '+c.adresse:''}${c.notes?' · '+c.notes:''}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="openClientMovement('${id}')">+ Opération</button><button class="btn secondary sm" onclick="editClient('${id}')">✏️ Modifier</button><button class="btn secondary sm" onclick="printClientStatement('${id}')">🖨️ Relevé</button><button class="icon-btn del" onclick="deleteClient('${id}')">🗑️</button></div></div><div class="client-summary"><div class="stat-card"><div class="stat-label">Dette argent</div><div class="stat-value ${x.argent>0?'c-red':'c-green'}">${fmt(x.argent)} <small>${D()}</small></div></div><div class="stat-card"><div class="stat-label">Casiers dus</div><div class="stat-value ${x.casiers>0?'c-warn':'c-green'}">${fmtDec(x.casiers)}</div></div><div class="stat-card"><div class="stat-label">Bouteilles dues</div><div class="stat-value ${x.bouteilles>0?'c-red':'c-green'}">${fmtDec(x.bouteilles)}</div></div></div><div style="font-size:13px;font-weight:800;color:var(--gold);margin:16px 0 5px">Historique des opérations</div><div class="client-history">${hist.length?hist.map(m=>`<div class="client-movement"><div><strong>${m.label}</strong><div style="color:var(--muted);margin-top:2px">${m.date}${m.note?' · '+m.note:''}</div></div><div style="text-align:right;font-family:var(--mono)">${m.argent?`<span class="${m.argent>0?'movement-plus':'movement-minus'}">${m.argent>0?'+':''}${fmt(m.argent)} ${D()}</span><br>`:''}${m.casiers?`<span class="${m.casiers>0?'movement-plus':'movement-minus'}">${m.casiers>0?'+':''}${fmtDec(m.casiers)} casier(s)</span><br>`:''}${m.bouteilles?`<span class="${m.bouteilles>0?'movement-plus':'movement-minus'}">${m.bouteilles>0?'+':''}${fmtDec(m.bouteilles)} btl</span>`:''}</div></div>`).join(''):'<div style="color:var(--muted);font-size:12px;padding:10px 0">Aucune opération enregistrée.</div>'}</div></div>`;
+}
+function openClientModal(id){editClientId=id||null;document.getElementById('client-modal-title').textContent=id?'✏️ Modifier client':'👥 Nouveau client';['cl-nom','cl-tel','cl-adresse','cl-notes'].forEach(i=>document.getElementById(i).value='');if(id){const c=clients.find(x=>x.id===id);document.getElementById('cl-nom').value=c.nom;document.getElementById('cl-tel').value=c.tel||'';document.getElementById('cl-adresse').value=c.adresse||'';document.getElementById('cl-notes').value=c.notes||'';}document.getElementById('modal-client').classList.add('open');}
+function editClient(id){openClientModal(id);}
+function saveClient(){const nom=document.getElementById('cl-nom').value.trim();if(!nom){alert('Nom du client requis');return;}let c=editClientId?clients.find(x=>x.id===editClientId):{id:uid(),createdAt:Date.now()};c.nom=nom;c.tel=document.getElementById('cl-tel').value.trim();c.adresse=document.getElementById('cl-adresse').value.trim();c.notes=document.getElementById('cl-notes').value.trim();if(!editClientId)clients.push(c);save();closeModal('modal-client');renderClients();if(currentSection==='clients')showClientDetail(c.id);}
+function deleteClient(id){const c=clients.find(x=>x.id===id);if(!c||!confirm('Supprimer le client et son historique ?'))return;clients=clients.filter(x=>x.id!==id);mouvementsClients=mouvementsClients.filter(m=>m.clientId!==id);currentClientId=null;save();renderClients();document.getElementById('client-detail-zone').innerHTML='';}
+function openClientMovement(id){currentClientId=id;const c=clients.find(x=>x.id===id);document.getElementById('client-mv-info').innerHTML=`<b>${c.nom}</b> — les soldes argent, casiers et bouteilles sont suivis séparément.`;document.getElementById('mv-type').value='vente_credit';document.getElementById('mv-note').value='';updateClientMovementForm();document.getElementById('modal-client-mouvement').classList.add('open');}
+function updateClientMovementForm(){const type=document.getElementById('mv-type').value;const f=document.getElementById('client-mv-fields');if(type==='vente_credit'||type==='paiement')f.innerHTML='<div class="form-row"><label>Montant ('+D()+')</label><input type="number" id="mv-quantite" min="0" step="1" placeholder="0"></div>';else f.innerHTML='<div class="form-row"><label>Quantité</label><input type="number" id="mv-quantite" min="0" step="0.5" placeholder="0"></div>' + (type.includes('casiers')?'<div class="form-row"><label>Type / référence (optionnel)</label><input type="text" id="mv-reference" placeholder="Ex: Régab 24 bouteilles"></div>':'');}
+function saveClientMovement(){const type=document.getElementById('mv-type').value,q=parseFloat(document.getElementById('mv-quantite')?.value)||0;if(q<=0){alert('Entrez une quantité valide');return;}const map={vente_credit:['Vente à crédit',q,0,0],paiement:['Paiement reçu',-q,0,0],remise_casiers:['Casiers remis',0,q,0],retour_casiers:['Casiers retournés',0,-q,0],remise_bouteilles:['Bouteilles remises',0,0,q],retour_bouteilles:['Bouteilles retournées',0,0,-q],casse_bouteilles:['Bouteilles cassées / perte',0,0,-q]}[type];const ref=document.getElementById('mv-reference')?.value.trim();mouvementsClients.push({id:uid(),clientId:currentClientId,type,label:map[0],argent:map[1],casiers:map[2],bouteilles:map[3],reference:ref||'',note:document.getElementById('mv-note').value.trim(),date:nowStr(),ts:Date.now()});save();closeModal('modal-client-mouvement');renderClients();showClientDetail(currentClientId);}
+function printClientStatement(id){const c=clients.find(x=>x.id===id),x=clientSolde(id),hist=clientMouvements(id);const rows=hist.map(m=>`${m.date} | ${m.label} | ${m.argent?fmt(m.argent)+' '+D():''} ${m.casiers?fmtDec(m.casiers)+' casier(s)':''} ${m.bouteilles?fmtDec(m.bouteilles)+' btl':''}`).join('\\n');const w=window.open('','_blank');if(!w){alert('Autorisez les fenêtres popup pour imprimer le relevé.');return;}w.document.write(`<html><head><title>Relevé - ${c.nom}</title><style>body{font-family:Arial;padding:30px;color:#111}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin-top:20px}td,th{border:1px solid #ccc;padding:8px;text-align:left;font-size:12px}.tot{font-weight:bold;margin:10px 0}</style></head><body><h1>Relevé client — ${c.nom}</h1><p>${c.tel||''} ${c.adresse||''}</p><p class="tot">Dette argent : ${fmt(x.argent)} ${D()}<br>Casiers dus : ${fmtDec(x.casiers)}<br>Bouteilles dues : ${fmtDec(x.bouteilles)}</p><table><tr><th>Date</th><th>Opération</th><th>Détails</th></tr>${hist.map(m=>`<tr><td>${m.date}</td><td>${m.label}</td><td>${m.argent?fmt(m.argent)+' '+D()+' ':''}${m.casiers?fmtDec(m.casiers)+' casier(s) ':''}${m.bouteilles?fmtDec(m.bouteilles)+' btl':''}</td></tr>`).join('')}</table><script>window.print()<\\/script></body></html>`);w.document.close();}
+
+// ══════════════════════════════════════════
+//  ADMIN
+// ══════════════════════════════════════════
+function resetTrialAdmin() {
+  const secret = document.getElementById('admin-secret').value;
+  if(secret !== ADMIN_SECRET){ alert('Entrez le code secret admin dans le champ ci-dessus pour confirmer.'); return; }
+  localStorage.removeItem('bm_trial_used');
+  localStorage.removeItem('bm_used_codes');
+  alert('✅ Les essais et codes utilisés ont été réinitialisés pour cet appareil.');
+}
+
+function supprimerTout(){
+  // 1. Vérifier si un code secret utilisateur est configuré
+  const userCode = settings.deleteCode || "";
+  
+  if(userCode !== "") {
+    // Si un code est configuré, on le demande via un prompt
+    const input = prompt("Entrez votre code secret de suppression pour confirmer :");
+    if(input === null) return; // Annulation
+    if(input !== userCode) {
+      alert("❌ Code secret incorrect. Suppression annulée.");
+      return;
+    }
+  } else {
+    // Si aucun code n'est configuré, on demande juste les confirmations standards
+    if(!confirm('⚠️ Supprimer TOUTES les données de BoissonsManager ?')) return;
+    if(!confirm('Confirmez une 2ème fois. Cette action est irréversible.')) return;
+  }
+  
+  // Réinitialisation des données
+  produits=[];
+  tournees=[];
+  casVides=[];
+  sobragaLog=[];
+  commandes=[];
+  fournisseurs=[{id:'sobraga',nom:'Sobraga',tel:'',notes:'Fournisseur principal'}];
+  clients=[];
+  mouvementsClients=[];
+  
+  // Sauvegarde et mise à jour de l'interface
+  save();
+  renderStock();
+  updateStats();
+  
+  alert('Toutes les données ont été supprimées avec succès.');
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+function init(){
+  const licData = localStorage.getItem('bm_licence');
+  if(!licData){ showMarketing(); return; }
+  const lic = JSON.parse(licData);
+  // Vérifier expiration
+  if(lic.expiry && Date.now() > lic.expiry){
+    // Licence expirée — afficher message sur la page marketing
+    showMarketing();
+    setTimeout(()=>{
+      const hero = document.querySelector('.mkt-hero');
+      if(hero){
+        const msg = document.createElement('div');
+        msg.style.cssText='background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.3);border-radius:14px;padding:14px 20px;margin-bottom:20px;max-width:500px;text-align:center;';
+        msg.innerHTML=`<div style="font-size:14px;font-weight:800;color:var(--danger);margin-bottom:4px;">⏰ Votre licence a expiré</div>
+          <div style="font-size:12px;color:var(--muted);">Renouvelez votre abonnement ou achetez une licence à vie pour continuer à utiliser BoissonsManager.</div>`;
+        hero.insertBefore(msg, hero.firstChild);
+      }
+    }, 100);
+    return;
+  }
+  // Licence valide
+  lancerApp();
+}
+
+init();
+
+// ══════════════════════════════════════════════════
+//  SIDEBAR & THEME
+// ══════════════════════════════════════════════════
+
+function toggleSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+}
+
+function toggleTheme(){
+  const body = document.body;
+  const isDark = body.classList.contains('light-mode');
+  const themeBtn = document.getElementById('theme-btn');
+  const headerThemeBtn = document.getElementById('theme-toggle-header');
+  
+  if(isDark){
+    body.classList.remove('light-mode');
+    localStorage.setItem('bm_theme', 'dark');
+    if(themeBtn) themeBtn.textContent = '🌙 Mode sombre';
+    if(headerThemeBtn) headerThemeBtn.textContent = '🌙';
+  } else {
+    body.classList.add('light-mode');
+    localStorage.setItem('bm_theme', 'light');
+    if(themeBtn) themeBtn.textContent = '☀️ Mode clair';
+    if(headerThemeBtn) headerThemeBtn.textContent = '☀️';
+  }
+}
+
+function initTheme(){
+  const savedTheme = localStorage.getItem('bm_theme') || 'dark';
+  if(savedTheme === 'light'){
+    document.body.classList.add('light-mode');
+    const themeBtn = document.getElementById('theme-btn');
+    const headerThemeBtn = document.getElementById('theme-toggle-header');
+    if(themeBtn) themeBtn.textContent = '☀️ Mode clair';
+    if(headerThemeBtn) headerThemeBtn.textContent = '☀️';
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  PROMOS SAISONNIÈRES — PRIX À VIE
+// ══════════════════════════════════════════════════
+const PRIX_AVIE_NORMAL = 50200;
+const PRIX_AVIE_PROMO  = 39900;
+
+// Périodes fixes (mois/jour). Le Black Friday est calculé dynamiquement.
+const PROMO_PERIODS = [
+  { label: '🎉 Offre Nouvel An',    start:{month:12,day:31}, end:{month:1, day:2} },  // chevauche l'année
+  { label: '🎄 Offre Réveillon',    start:{month:12,day:24}, end:{month:12,day:24} },
+  { label: '🎅 Offre Noël',         start:{month:12,day:25}, end:{month:12,day:26} },
+  { label: '🎂 Offre Anniversaire', start:{month:2, day:20}, end:{month:2, day:20} }
+];
+
+// 4ème vendredi de novembre + weekend (jusqu'au Cyber Monday inclus)
+function getBlackFridayRange(year){
+  const nov1 = new Date(year, 10, 1);
+  const firstFriday = 1 + ((5 - nov1.getDay() + 7) % 7);
+  const bfDay = firstFriday + 21;
+  const start = new Date(year, 10, bfDay, 0, 0, 0);
+  const end = new Date(year, 10, bfDay + 3, 23, 59, 59); // Friday -> Monday
+  return { start, end };
+}
+
+function getActivePromo(){
+  const now = new Date();
+  const m = now.getMonth() + 1, d = now.getDate();
+
+  // Black Friday (dynamique, gère aussi le cas où novembre déborde sur décembre)
+  const bf = getBlackFridayRange(now.getFullYear());
+  if (now >= bf.start && now <= bf.end) return '🖤 Black Friday';
+
+  for (const p of PROMO_PERIODS) {
+    if (p.start.month === p.end.month) {
+      if (m === p.start.month && d >= p.start.day && d <= p.end.day) return p.label;
+    } else {
+      // période qui chevauche le Nouvel An (ex: 31 déc -> 2 jan)
+      if ((m === p.start.month && d >= p.start.day) || (m === p.end.month && d <= p.end.day)) return p.label;
+    }
+  }
+  return null;
+}
+
+function updateLifetimePricing(){
+  const badge = document.getElementById('lifetime-badge');
+  const price = document.getElementById('lifetime-price');
+  if (!badge || !price) return;
+
+  const promo = getActivePromo();
+  const fmt = n => n.toLocaleString('fr-FR');
+
+  if (promo){
+    badge.textContent = promo;
+    price.innerHTML = `<span style="text-decoration:line-through;color:var(--muted);font-size:16px;font-weight:600;">${fmt(PRIX_AVIE_NORMAL)}</span> ${fmt(PRIX_AVIE_PROMO)}<span> FCFA / une fois</span>`;
+  } else {
+    badge.textContent = 'À vie';
+    price.innerHTML = `${fmt(PRIX_AVIE_NORMAL)}<span> FCFA / une fois</span>`;
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  CODES PROMO / RÉDUCTION (Mensuel, 2 mois, Trimestre, À vie)
+// ══════════════════════════════════════════════════
+const PRIX_BASE = {
+  monthly:  { montant:5900,  label:'FCFA/mois',    elId:'monthly-price',  badgeId:'monthly-badge'  },
+  monthly2: { montant:8900,  label:'FCFA/2 mois',  elId:'monthly2-price', badgeId:'monthly2-badge' },
+  monthly3: { montant:11900, label:'FCFA/3 mois',  elId:'monthly3-price', badgeId:'monthly3-badge' },
+  lifetime: { montant:50200, label:'FCFA / une fois', elId:'lifetime-price', badgeId:'lifetime-badge' }
+};
+
+function appliquerCodePromo(){
+  const inputEl = document.getElementById('promo-code-input');
+  const msgEl = document.getElementById('promo-code-msg');
+  const raw = inputEl.value.trim();
+  const code = raw.toUpperCase().replace(/\s+/g,'').replace(/-/g,'');
+
+  if(!code){ return; }
+
+  // Le code a-t-il déjà été utilisé sur cet appareil ?
+  const usedPromo = JSON.parse(localStorage.getItem('bm_used_promo_codes') || '[]');
+  if (usedPromo.includes(code)) {
+    msgEl.textContent = '❌ Ce code promo a déjà été utilisé sur cet appareil.';
+    msgEl.style.color = 'var(--danger)';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  // Chercher le code dans les codes de réduction générés par l'admin
+  const codesReduction = JSON.parse(localStorage.getItem('bm_discount_codes') || '{}');
+  const info = codesReduction[code];
+
+  if(!info){
+    msgEl.textContent = '❌ Code promo invalide.';
+    msgEl.style.color = 'var(--danger)';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  const plan = PRIX_BASE[info.plan];
+  if(!plan){
+    msgEl.textContent = '❌ Ce code n\'est plus valide.';
+    msgEl.style.color = 'var(--danger)';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  const nouveauPrix = Math.max(0, plan.montant - info.reduction);
+  const priceEl = document.getElementById(plan.elId);
+  const badgeEl = document.getElementById(plan.badgeId);
+  const fmt = n => n.toLocaleString('fr-FR');
+
+  if(priceEl){
+    priceEl.innerHTML = `<span style="text-decoration:line-through;color:var(--muted);font-size:16px;font-weight:600;">${fmt(plan.montant)}</span> ${fmt(nouveauPrix)}<span> ${plan.label}</span>`;
+  }
+  if(badgeEl){
+    badgeEl.textContent = '🏷️ Code promo appliqué';
+  }
+
+  // Marquer le code comme utilisé sur cet appareil (empêche la réutilisation)
+  usedPromo.push(code);
+  localStorage.setItem('bm_used_promo_codes', JSON.stringify(usedPromo));
+
+  msgEl.textContent = `✅ Code appliqué ! Réduction de ${fmt(info.reduction)} FCFA sur l'offre ${info.plan === 'lifetime' ? 'À vie' : info.plan}.`;
+  msgEl.style.color = 'var(--success)';
+  msgEl.style.display = 'block';
+  inputEl.value = '';
+  inputEl.disabled = true;
+}
+
+// Génération des codes de réduction — appelée depuis l'admin
+function genererCodeReduction(){
+  const secret = document.getElementById('admin-promo-secret').value;
+  if(secret !== ADMIN_SECRET){ alert('Code secret incorrect'); return; }
+
+  const plan = document.getElementById('admin-promo-plan').value;
+  const reduction = parseInt(document.getElementById('admin-promo-montant').value, 10);
+  if(!reduction || reduction <= 0){ alert('Entrez un montant de réduction valide.'); return; }
+
+  const rand = Math.random().toString(36).slice(2,7).toUpperCase();
+  const prefixes = {monthly:'PMOIS',monthly2:'P2MOIS',monthly3:'PTRIM',lifetime:'PAVIE'};
+  const code = `${prefixes[plan]}-${rand}`;
+
+  const codesReduction = JSON.parse(localStorage.getItem('bm_discount_codes') || '{}');
+  codesReduction[code.replace(/-/g,'')] = { plan, reduction };
+  localStorage.setItem('bm_discount_codes', JSON.stringify(codesReduction));
+
+  document.getElementById('admin-promo-result-display').textContent = code;
+  document.getElementById('admin-promo-result').style.display = 'block';
+}
+
+// Initialiser le thème au chargement
+window.addEventListener('DOMContentLoaded', initTheme);
+window.addEventListener('DOMContentLoaded', updateLifetimePricing);
+
+// Mettre à jour le sidebar quand on change de section
+const originalShowSection = window.showSection;
+window.showSection = function(sectionId, btn){
+  // Mettre à jour le bouton actif du sidebar
+  const sidebarBtns = document.querySelectorAll('.sidebar-nav button');
+  sidebarBtns.forEach(b => b.classList.remove('active'));
+  
+  // Trouver le bouton correspondant dans le sidebar
+  const sectionMap = {
+    'stock': 0, 'tournees': 1, 'casiers-vides': 2, 'commandes': 3,
+    'analyse': 4, 'rapport': 5, 'ia': 6, 'aide': 7, 'parametres': 8
+  };
+  
+  if(sectionMap[sectionId] !== undefined){
+    sidebarBtns[sectionMap[sectionId]].classList.add('active');
+  }
+  
+  // Appeler la fonction originale
+  originalShowSection.call(this, sectionId, btn);
+};
+
+</script>
+<script>
+  // Chargement asynchrone des polices après l'affichage de la page
+  window.addEventListener('load', function() {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=DM+Mono:wght@300;400;500&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  });
+</script>
+</body>
+</html>
